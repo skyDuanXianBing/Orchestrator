@@ -1,0 +1,91 @@
+{
+  "task_id": "task_1740412800",
+  "category": "A",
+  "mode": "FAST",
+  "global_context": {
+    "relevant_files": [
+      "packages/web/src/views/CreateTask.vue",
+      "packages/web/src/assets/main.css",
+      "packages/web/src/i18n/index.ts",
+      "packages/web/src/i18n/locales/zh-CN.ts",
+      "packages/web/src/i18n/locales/en.ts",
+      "packages/web/src/utils/http.ts",
+      "packages/web/src/stores/task.ts",
+      "packages/web/src/composables/useSSE.ts",
+      "packages/web/src/composables/usePolling.ts",
+      "doc/项目路径选择器/01_需求规格说明书.md"
+    ],
+    "api_contracts": [
+      "CreateTask -> useTaskStore().createTask() -> POST /api/task (CreateTaskRequest: { requirement, category, mode, projectPath?: string })",
+      "Centralized HTTP client: packages/web/src/utils/http.ts expects ApiResponse<T> envelope: { success, data, error }"
+    ],
+    "critical_logic": [
+      "CreateTask projectPath field is a plain <input> bound to form.projectPath; submit passes projectPath: form.projectPath || undefined (keeps field optional).",
+      "All user-visible strings are via vue-i18n; CreateTask uses keys under create.* (e.g., create.projectPathLabel, create.projectPathPlaceholder).",
+      "UI styling uses custom global CSS utility classes (btn/card/form-*) and CSS variables in packages/web/src/assets/main.css.",
+      "Existing localStorage usage pattern exists in packages/web/src/i18n/index.ts (detectLocale/persistLocale); no existing recent-path storage yet.",
+      "HTTP calls must go through packages/web/src/utils/http.ts (store uses httpGet/httpPost/httpDelete)."
+    ]
+  },
+  "phases": {
+    "phase_0": {
+      "agent": "spec_clarifier",
+      "status": "SUCCESS",
+      "summary": "已输出‘项目路径选择器’需求规格说明书（含 Must/Should、UI 行为、范围边界、边界场景与可验收清单）。",
+      "finished_at": "2026-02-24T12:42:58+0800"
+    },
+    "phase_0r": {
+      "type": "HUMAN_REVIEW_GATE",
+      "status": "APPROVED_BY_HUMAN",
+      "revision_count": 0,
+      "approved_at": "2026-02-24T12:45:00+0800"
+    },
+    "phase_1": {
+      "agent": "context_builder",
+      "status": "SUCCESS",
+      "summary": "已定位 CreateTask 页面与‘项目路径（可选）’字段实现；梳理 i18n key、全局样式（form/btn/card）、HTTP/store/composable 约束与 localStorage 既有模式；并补充到 global_context。",
+      "changed_files": [],
+      "finished_at": "2026-02-24T12:52:32+0800"
+    },
+    "phase_2": {
+      "agent": "impl_green_coder",
+      "status": "SUCCESS",
+      "summary": "已实现项目路径选择器：新增最近路径 localStorage composable 与 PathPicker 组件（下拉最近路径、外部点击关闭、ESC 关闭、清除记录）；CreateTask 页面已替换输入控件并在创建成功后写入最近路径；中英文 i18n 已补充对应文案。",
+      "changed_files": [
+        "doc/项目路径选择器/02_技术设计与任务书.md",
+        "packages/web/src/composables/useRecentPaths.ts",
+        "packages/web/src/components/PathPicker.vue",
+        "packages/web/src/views/CreateTask.vue",
+        "packages/web/src/i18n/locales/zh-CN.ts",
+        "packages/web/src/i18n/locales/en.ts"
+      ],
+      "finished_at": "2026-02-24T13:00:30+0800"
+    },
+    "phase_3": {
+      "agent": "quality_assurance",
+      "status": "SUCCESS",
+      "summary": "Build/Test/CodeReview/i18n全部通过。lint无实际script和缺少03文档为FAST模式预期行为，Orchestrator判定PASS。",
+      "evidence": {
+        "report": "doc/项目路径选择器/04_验证报告与日志.md",
+        "commands": [
+          "pnpm build",
+          "pnpm lint",
+          "pnpm test"
+        ],
+        "inspected_files": [
+          "packages/web/src/composables/useRecentPaths.ts",
+          "packages/web/src/components/PathPicker.vue",
+          "packages/web/src/views/CreateTask.vue",
+          "packages/web/src/i18n/locales/zh-CN.ts",
+          "packages/web/src/i18n/locales/en.ts"
+        ]
+      },
+      "changed_files": [
+        "doc/项目路径选择器/04_验证报告与日志.md",
+        "LxyDxb/tasks/task_1740412800.json"
+      ],
+      "finished_at": "2026-02-24T13:04:03+0800"
+    }
+  },
+  "result": "DONE"
+}

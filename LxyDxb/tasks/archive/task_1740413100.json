@@ -1,0 +1,68 @@
+{
+  "task_id": "task_1740413100",
+  "category": "A",
+  "mode": "FAST",
+  "description": "PathPicker改为浏览器原生showDirectoryPicker",
+  "phases": {
+    "phase_1": {
+      "agent": "context_builder",
+      "status": "DONE_PRIOR"
+    },
+    "phase_2": {
+      "agent": "impl_green_coder",
+      "status": "SUCCESS",
+      "summary": "已将 PathPicker 改为浏览器原生 showDirectoryPicker 方案：移除最近路径下拉与相关逻辑，保留输入与浏览按钮；不支持时提示手动输入；并同步删除 useRecentPaths 与 CreateTask 接入代码，更新中英文 i18n。",
+      "changed_files": [
+        "doc/项目路径选择器/02_技术设计与任务书.md",
+        "packages/web/src/components/PathPicker.vue",
+        "packages/web/src/views/CreateTask.vue",
+        "packages/web/src/composables/useRecentPaths.ts",
+        "packages/web/src/i18n/locales/zh-CN.ts",
+        "packages/web/src/i18n/locales/en.ts"
+      ],
+      "finished_at": "2026-02-24T13:11:27+0800"
+    },
+    "phase_3": {
+      "agent": "quality_assurance",
+      "status": "SUCCESS",
+      "evidence": {
+        "commands": [
+          {
+            "command": "pnpm build",
+            "exit_code": 0
+          },
+          {
+            "command": "pnpm test",
+            "exit_code": 0
+          }
+        ],
+        "code_review": {
+          "packages/web/src/components/PathPicker.vue": "PASS",
+          "packages/web/src/views/CreateTask.vue": "PASS",
+          "packages/web/src/composables/useRecentPaths.ts": "PASS(deleted)",
+          "packages/web/src/i18n/locales/zh-CN.ts": "PASS",
+          "packages/web/src/i18n/locales/en.ts": "PASS"
+        },
+        "i18n_compliance": "PASS",
+        "dangling_imports_useRecentPaths": 0,
+        "doc_completeness": {
+          "01_需求规格说明书.md": true,
+          "02_技术设计与任务书.md": true,
+          "03_测试计划与用例.md": false,
+          "04_验证报告与日志.md": true
+        },
+        "changed_files_from_phase_2": [
+          "doc/项目路径选择器/02_技术设计与任务书.md",
+          "packages/web/src/components/PathPicker.vue",
+          "packages/web/src/views/CreateTask.vue",
+          "packages/web/src/composables/useRecentPaths.ts",
+          "packages/web/src/i18n/locales/zh-CN.ts",
+          "packages/web/src/i18n/locales/en.ts"
+        ]
+      },
+      "summary": "Build/Test/CodeReview/i18n/悬挂引用检查全部通过。03文档缺失为FAST模式预期。",
+      "finished_at": "2026-02-24T13:15:26+0800"
+    }
+  },
+  "result": "DONE"
+}

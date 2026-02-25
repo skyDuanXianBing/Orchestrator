@@ -1,0 +1,168 @@
+{
+  "task_id": "task_1771941861",
+  "category": "B",
+  "mode": "FAST",
+  "user_requirement": "在流水线阶段详情弹窗中支持实时展示子agent阶段执行信息（状态、耗时、commands_executed、changed_files、artifact_pointers）并随执行持续更新",
+  "doc_path": "doc/阶段详情实时展示",
+  "project_path": ".",
+  "created_at": "2026-02-24T16:08:00Z",
+  "updated_at": "2026-02-24T16:55:28Z",
+  "global_context": {
+    "relevant_files": [
+      "doc/阶段详情实时展示/01_需求规格说明书.md",
+      "packages/web/src/views/TaskDetail.vue",
+      "packages/web/src/composables/useSSE.ts",
+      "packages/web/src/composables/usePolling.ts",
+      "packages/web/src/components/PhaseDetailModal.vue",
+      "packages/server/src/pipeline/runner.ts",
+      "packages/shared/src/types/events.ts",
+      "LxyDxb/logs/phase1_context_report_task_1771941861.md"
+    ],
+    "api_contracts": [
+      "GET /api/task/:id -> TaskDetailResponse.blackboard",
+      "GET /api/events/:taskId -> SSE stream"
+    ],
+    "critical_logic": [
+      "Modal 实时性取决于 TaskDetail 是否及时刷新 blackboard；当前未监听 PHASE_STARTED，且轮询常驻 5s。",
+      "后端 PhaseRecord 目前仅阶段开始/结束两次写入；执行中需要在 SDK 事件（file.edited/command.executed）里增量 updatePhase 并发 BLACKBOARD_UPDATED。",
+      "进行中耗时需要在 PhaseDetailModal 内部引入 1s 定时 tick 才能动态刷新。"
+    ],
+    "downstream_prompt": "实现实时阶段详情：Web 侧新增 PHASE_STARTED 刷新、SSE-first + 断线轮询降级、修复 useSSE 重复监听、Modal 动态计时；Server 侧在 forwardSdkEvent 里对 file.edited/command.executed 增量写入 PhaseRecord（changed_files/commands_executed）并 emit BLACKBOARD_UPDATED。"
+  },
+  "phases": {
+    "phase_0": {
+      "type": "AGENT_GATE",
+      "agent": "spec_clarifier",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T08:18:07Z",
+      "finished_at": "2026-02-24T08:19:11Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "doc/阶段详情实时展示/01_需求规格说明书.md"
+      ],
+      "commands_executed": [
+        "date -u +\"%Y-%m-%dT%H:%M:%SZ\""
+      ],
+      "artifact_pointers": [
+        "doc/阶段详情实时展示/01_需求规格说明书.md"
+      ],
+      "error_summary": null,
+      "summary": "完成阶段详情实时展示需求规格说明书，明确实时口径（SSE优先+可选轮询降级）、延迟目标、进行中耗时规则、增量列表展示，以及后端黑板增量落盘与事件契约验收标准。"
+    },
+    "phase_0r": {
+      "type": "HUMAN_REVIEW",
+      "agent": null,
+      "status": "APPROVED_BY_HUMAN",
+      "retry_count": 0,
+      "started_at": "2026-02-24T16:20:00Z",
+      "finished_at": "2026-02-24T16:20:00Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "doc/阶段详情实时展示/01_需求规格说明书.md"
+      ],
+      "commands_executed": [],
+      "artifact_pointers": [
+        "doc/阶段详情实时展示/01_需求规格说明书.md"
+      ],
+      "error_summary": null,
+      "summary": "用户确认需求规格说明书，无需修改。"
+    },
+    "phase_1": {
+      "type": "AGENT_GATE",
+      "agent": "context_builder",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T08:41:05Z",
+      "finished_at": "2026-02-24T08:41:05Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "LxyDxb/tasks/task_1771941861.json",
+        "LxyDxb/logs/phase1_context_report_task_1771941861.md",
+        "LxyDxb/logs/phase1_writeback_payload_task_1771941861.json"
+      ],
+      "commands_executed": [
+        "date -u +\"%Y-%m-%dT%H:%M:%SZ\""
+      ],
+      "artifact_pointers": [
+        "LxyDxb/logs/phase1_context_report_task_1771941861.md",
+        "LxyDxb/logs/phase1_writeback_payload_task_1771941861.json"
+      ],
+      "error_summary": null,
+      "summary": "已完成现状梳理：定位 Web 刷新事件缺口与轮询策略问题；确认后端 PhaseRecord 缺少执行中增量写入；给出 Web+Server 最小改动建议用于实现弹窗实时展示。"
+    },
+    "phase_2": {
+      "type": "AGENT_GATE",
+      "agent": "impl_green_coder",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T16:44:00Z",
+      "finished_at": "2026-02-24T16:49:15Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "doc/阶段详情实时展示/02_技术设计与任务书.md",
+        "packages/web/src/views/TaskDetail.vue",
+        "packages/web/src/components/PhaseDetailModal.vue",
+        "packages/web/src/composables/useSSE.ts",
+        "packages/server/src/pipeline/runner.ts",
+        "LxyDxb/tasks/task_1771941861.json"
+      ],
+      "commands_executed": [
+        "pnpm --filter @orchestrator/server build",
+        "pnpm --filter @orchestrator/web build",
+        "python -m json.tool LxyDxb/tasks/task_1771941861.json >/dev/null"
+      ],
+      "artifact_pointers": [
+        "doc/阶段详情实时展示/02_技术设计与任务书.md",
+        "packages/web/src/views/TaskDetail.vue",
+        "packages/web/src/components/PhaseDetailModal.vue",
+        "packages/web/src/composables/useSSE.ts",
+        "packages/server/src/pipeline/runner.ts"
+      ],
+      "error_summary": null,
+      "summary": "完成阶段详情实时展示最小实现：Web 侧补齐 PHASE_STARTED/PIPELINE_STARTED 刷新、SSE 断线降级轮询、弹窗 1 秒动态耗时与 useSSE 去重分发；Server 侧在 SDK file.edited 与 command.executed 事件中增量写入 PhaseRecord 并触发 BLACKBOARD_UPDATED。"
+    },
+    "phase_3": {
+      "type": "AGENT_GATE",
+      "agent": "qa_runtime_verifier",
+      "status": "FAILED",
+      "retry_count": 0,
+      "started_at": "2026-02-24T16:52:45Z",
+      "finished_at": "2026-02-24T16:55:28Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "LxyDxb/logs/phase3_build_shared_task_1771941861.log",
+        "LxyDxb/logs/phase3_build_server_task_1771941861.log",
+        "LxyDxb/logs/phase3_build_web_task_1771941861.log",
+        "LxyDxb/logs/phase3_test_server_task_1771941861.log",
+        "LxyDxb/logs/phase3_blackboard_validate_task_1771941861.log",
+        "doc/阶段详情实时展示/04_验证报告与日志.md",
+        "LxyDxb/tasks/task_1771941861.json"
+      ],
+      "commands_executed": [
+        "date -u +\"%Y-%m-%dT%H:%M:%SZ\"",
+        "pnpm build:shared",
+        "pnpm build:server",
+        "pnpm build:web",
+        "pnpm test",
+        "python -m json.tool LxyDxb/tasks/task_1771941861.json",
+        "date -u +\"%Y-%m-%dT%H:%M:%SZ\""
+      ],
+      "artifact_pointers": [
+        "LxyDxb/logs/phase3_build_shared_task_1771941861.log",
+        "LxyDxb/logs/phase3_build_server_task_1771941861.log",
+        "LxyDxb/logs/phase3_build_web_task_1771941861.log",
+        "LxyDxb/logs/phase3_test_server_task_1771941861.log",
+        "LxyDxb/logs/phase3_blackboard_validate_task_1771941861.log",
+        "doc/阶段详情实时展示/04_验证报告与日志.md"
+      ],
+      "error_summary": "FAST 证据校验未完全通过：doc/阶段详情实时展示 下缺少 03 文档。",
+      "summary": "构建（shared/server/web）与 server 测试均通过，Web 改动文件未发现用户可见硬编码文案；但按 FAST 文档 01-04 校验规则，缺少 03 文档，证据完整性判定为未通过。"
+    }
+  }
+}

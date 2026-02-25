@@ -1,0 +1,184 @@
+{
+  "task_id": "task_1771944100",
+  "category": "B",
+  "mode": "FAST",
+  "user_requirement": "阶段详情弹窗需实时展示子agent任何操作（Read/Glob/Grep/Command/Edited/Artifact等）+ 汇总字段；并补齐读取文件等缺失信息；操作流每phase保留最近500条，汇总字段去重累积",
+  "doc_path": "doc/阶段详情操作实时展示",
+  "project_path": ".",
+  "created_at": "2026-02-24T17:21:40Z",
+  "updated_at": "2026-02-24T18:12:49Z",
+  "global_context": {
+    "relevant_files": [
+      "doc/阶段详情操作实时展示/01_需求规格说明书.md",
+      "packages/server/src/pipeline/runner.ts",
+      "packages/server/src/core/state-machine.ts",
+      "packages/server/src/core/blackboard.ts",
+      "packages/server/src/services/task-manager.ts",
+      "packages/server/src/db/repositories/phase-repository.ts",
+      "packages/shared/src/types/blackboard.ts",
+      "packages/shared/src/types/events.ts",
+      "packages/web/src/components/PhaseDetailModal.vue",
+      "LxyDxb/logs/phase1_context_report_task_1771944100.md"
+    ],
+    "api_contracts": [
+      "SSE: GET /api/events/:taskId (SSEEventType 包含 blackboard_updated)",
+      "Task detail: GET /api/task/:id 返回 BlackboardJson（含 phases）"
+    ],
+    "critical_logic": [
+      "目前执行中增量写黑板仅覆盖 file.edited 与 command.executed；要实现‘任何操作’，需在 message.part.updated(ToolPart/PatchPart/FilePart) 上统一采集并生成 operation entry。",
+      "新增 operations timeline 后，需要评估 PhaseRepository hydration（重启恢复）是否会丢失新字段；必要时同步持久化字段或改 hydration 数据源。",
+      "前端实时展示可先复用 BLACKBOARD_UPDATED 触发 fetchTaskDetail 刷新；高频场景可后续改为增量 SSE 事件。"
+    ],
+    "downstream_prompt": "实现阶段操作时间线：在 PhaseRecord 新增 operations(最多500条)+ seq；服务端在 runner.forwardSdkEvent 处理 message.part.updated/tool/patch/file 生成脱敏 OperationTimelineEntry 并 updatePhase；同步维护汇总字段（read_files/changed_files/commands_executed/artifact_pointers 去重累积）；前端弹窗新增时间线区（实时更新+可滚动+筛选可选）。"
+  },
+  "phases": {
+    "phase_0": {
+      "type": "AGENT_GATE",
+      "agent": "spec_clarifier",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T17:27:12Z",
+      "finished_at": "2026-02-24T17:27:16Z",
+      "session_id": null,
+      "task_id": "task_1771944100",
+      "changed_files": [
+        "doc/阶段详情操作实时展示/01_需求规格说明书.md"
+      ],
+      "commands_executed": [],
+      "artifact_pointers": [
+        "doc/阶段详情操作实时展示/01_需求规格说明书.md"
+      ],
+      "error_summary": null,
+      "summary": "已产出需求规格说明书：定义阶段操作时间线的操作分类、数据结构、与 PhaseRecord 汇总字段映射；明确实时性/顺序/去重/截断/展示与脱敏约束。"
+    },
+    "phase_0r": {
+      "type": "HUMAN_REVIEW",
+      "agent": null,
+      "status": "APPROVED_BY_HUMAN",
+      "retry_count": 0,
+      "started_at": "2026-02-24T17:38:30Z",
+      "finished_at": "2026-02-24T17:38:30Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "doc/阶段详情操作实时展示/01_需求规格说明书.md"
+      ],
+      "commands_executed": [],
+      "artifact_pointers": [
+        "doc/阶段详情操作实时展示/01_需求规格说明书.md"
+      ],
+      "error_summary": null,
+      "summary": "用户确认需求规格说明书，无需修改。"
+    },
+    "phase_1": {
+      "type": "AGENT_GATE",
+      "agent": "context_builder",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T17:39:30Z",
+      "finished_at": "2026-02-24T17:42:10Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "LxyDxb/logs/phase1_context_report_task_1771944100.md"
+      ],
+      "commands_executed": [],
+      "artifact_pointers": [
+        "LxyDxb/logs/phase1_context_report_task_1771944100.md"
+      ],
+      "error_summary": null,
+      "summary": "已定位 sub-agent 任意操作的可观测入口：Opencode SDK 事件 message.part.updated（ToolPart/PatchPart/FilePart）与现有 file.edited/command.executed。建议在 runner.forwardSdkEvent 中生成脱敏 OperationTimelineEntry，按 phase 追加并截断 500 条，同时同步更新汇总字段；并评估持久化（PhaseRepository hydration）与 SSE 策略（先复用 BLACKBOARD_UPDATED，后可增量事件）。"
+    },
+    "phase_2": {
+      "type": "AGENT_GATE",
+      "agent": "impl_green_coder",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T17:46:00Z",
+      "finished_at": "2026-02-24T18:06:00Z",
+      "session_id": null,
+      "task_id": null,
+      "changed_files": [
+        "packages/shared/src/types/blackboard.ts",
+        "packages/shared/src/types/pipeline.ts",
+        "packages/shared/src/index.ts",
+        "packages/server/src/core/state-machine.ts",
+        "packages/server/src/services/task-manager.ts",
+        "packages/server/src/core/blackboard.ts",
+        "packages/server/src/db/repositories/phase-repository.ts",
+        "packages/server/src/pipeline/runner.ts",
+        "packages/web/src/components/PhaseDetailModal.vue",
+        "packages/web/src/i18n/locales/zh-CN.ts",
+        "packages/web/src/i18n/locales/en.ts",
+        "doc/阶段详情操作实时展示/02_技术设计与任务书.md",
+        "doc/阶段详情操作实时展示/03_测试计划与用例.md"
+      ],
+      "commands_executed": [
+        "pnpm build:shared",
+        "pnpm build:server",
+        "pnpm build:web",
+        "pnpm test"
+      ],
+      "artifact_pointers": [
+        "doc/阶段详情操作实时展示/02_技术设计与任务书.md",
+        "doc/阶段详情操作实时展示/03_测试计划与用例.md"
+      ],
+      "read_files": [
+        "doc/阶段详情操作实时展示/01_需求规格说明书.md",
+        "packages/shared/src/types/blackboard.ts",
+        "packages/shared/src/types/pipeline.ts",
+        "packages/server/src/core/blackboard.ts",
+        "packages/server/src/db/repositories/phase-repository.ts",
+        "packages/server/src/pipeline/runner.ts",
+        "packages/server/src/core/state-machine.ts",
+        "packages/server/src/services/task-manager.ts",
+        "packages/web/src/components/PhaseDetailModal.vue",
+        "packages/web/src/views/TaskDetail.vue",
+        "packages/web/src/composables/useSSE.ts",
+        "packages/web/src/i18n/locales/zh-CN.ts",
+        "packages/web/src/i18n/locales/en.ts",
+        "LxyDxb/tasks/task_1771944100.json"
+      ],
+      "operations": [],
+      "operations_seq": 0,
+      "error_summary": null,
+      "summary": "已端到端实现阶段操作实时展示：新增 shared/server/web 数据模型与展示，服务端在 message.part.updated 捕获 Tool/Patch/File 并生成脱敏元数据时间线（seq/op_id/500 截断），同步补齐 read_files 与现有汇总字段；已完成 build+test 验证并补齐 02/03 文档。"
+    },
+    "phase_3": {
+      "type": "AGENT_GATE",
+      "agent": "quality_assurance",
+      "status": "SUCCESS",
+      "retry_count": 0,
+      "started_at": "2026-02-24T18:09:21Z",
+      "finished_at": "2026-02-24T18:12:49Z",
+      "session_id": null,
+      "task_id": "task_1771944100",
+      "changed_files": [
+        "doc/阶段详情操作实时展示/04_验证报告与日志.md",
+        "LxyDxb/logs/phase3_build_shared.log",
+        "LxyDxb/logs/phase3_build_shared.exit",
+        "LxyDxb/logs/phase3_build_server.log",
+        "LxyDxb/logs/phase3_build_server.exit",
+        "LxyDxb/logs/phase3_build_web.log",
+        "LxyDxb/logs/phase3_build_web.exit",
+        "LxyDxb/logs/phase3_test_server.log",
+        "LxyDxb/logs/phase3_test_server.exit"
+      ],
+      "commands_executed": [
+        "pnpm build:shared",
+        "pnpm build:server",
+        "pnpm build:web",
+        "pnpm test"
+      ],
+      "artifact_pointers": [
+        "doc/阶段详情操作实时展示/04_验证报告与日志.md",
+        "LxyDxb/logs/phase3_build_shared.log",
+        "LxyDxb/logs/phase3_build_server.log",
+        "LxyDxb/logs/phase3_build_web.log",
+        "LxyDxb/logs/phase3_test_server.log"
+      ],
+      "error_summary": null,
+      "summary": "FAST 模式独立验证通过：shared/server/web 构建与 server 测试均为 0 退出码；01-04 文档证据完整；PhaseDetailModal 可见文本走 i18n 且双语键存在；operations 时间线抽查为脱敏元数据，不存储工具输出或文件原文。"
+    }
+  }
+}
