@@ -15,7 +15,7 @@ Role: Refactor Reviewer.
 Input: code + `[Doc Path]`.
 
 ### Context
-* Read `02_技术设计与任务书.md` in `[Doc Path]` when provided.
+* Read `技术设计与任务书.md` in `[Doc Path]` when provided.
 * Precondition: tests are green.
 
 ### Core Responsibilities

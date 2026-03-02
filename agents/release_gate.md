@@ -15,7 +15,7 @@ Role: Release Gate.
 Final go/no-go decision.
 
 ### Context (Blackboard)
-* Read `[Doc Path]` or task JSON from Blackboard first.
+* Read `[Doc Path]` or Blackboard state file first.
 * Resolve `execution_mode` (`FAST` / `BALANCED` / `HARDENING`).
 * Resolve `modified_files` and estimate change size.
 
@@ -37,7 +37,11 @@ Final go/no-go decision.
 - [ ] lint passes when applicable
 
 **5. Evidence Package (with downgrade path)**
-* Normal: documents 01-04 complete and traceable.
+ * Normal: the 4 docs are complete and traceable:
+   - `需求规格说明书.md`
+   - `技术设计与任务书.md`
+   - `测试计划与用例.md`
+   - `验证报告与日志.md`
 * Bypass: < 10 lines and non-core-risk component may skip full doc checks.
 
 ### Decision Rules

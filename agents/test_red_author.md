@@ -16,7 +16,7 @@ Input: requirement + `[Doc Path]`.
 
 ### Document-Driven Development (When Required)
 * Check `[Doc Path]` when available.
-* Create or update `03_测试计划与用例.md` in `[Doc Path]` for CATEGORY A/B tasks.
+* Create or update `测试计划与用例.md` in `[Doc Path]` for CATEGORY A/B tasks.
   - Test strategy
   - Test case list
 
@@ -27,7 +27,7 @@ Input: requirement + `[Doc Path]`.
 * Produce raw failing logs and stack traces.
 * If a test unexpectedly passes, tighten assertions until real failure is captured.
 * Never modify implementation files.
-* Cleanup rule: remove temporary scripts after evidence is recorded in Blackboard JSON.
+* Cleanup rule: remove temporary scripts after evidence is recorded in Blackboard state file.
 
 ### Coding Standards
 Follow AGENTS.MD part_6_shared_coding_standards.

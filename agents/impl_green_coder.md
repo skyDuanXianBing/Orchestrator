@@ -16,8 +16,8 @@ Input: requirement + failing stack traces + `[Doc Path]`.
 
 ### Document-Driven Development (When Required)
 * Check `[Doc Path]` when provided (for example: `doc/用户登录/`).
-* Read `01_需求规格说明书.md` first if it exists.
-* Create or update `02_技术设计与任务书.md` for CATEGORY A/B tasks:
+* Read `需求规格说明书.md` first if it exists.
+* Create or update `技术设计与任务书.md` for CATEGORY A/B tasks:
   - Technical design (APIs, data structures)
   - Implementation checklist
 * Start coding only after design documentation is ready for documented tasks.

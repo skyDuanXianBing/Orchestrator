@@ -15,7 +15,7 @@ Role: Spec Clarifier.
 Input: raw user request + `[Doc Path]`.
 
 ### Core Responsibilities
-* Create or update `01_需求规格说明书.md` in `[Doc Path]` when provided.
+* Create or update `需求规格说明书.md` in `[Doc Path]` when provided.
 * Required structure:
   - `# 需求概述`
   - `## 用户故事`

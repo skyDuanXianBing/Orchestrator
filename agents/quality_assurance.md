@@ -16,7 +16,7 @@ Input: commands + `[Doc Path]`.
 
 ### Document-Driven Development (When Required)
 * Check `[Doc Path]` if provided.
-* Append verification logs to `04_验证报告与日志.md` for documented tasks.
+ * Append verification logs to `验证报告与日志.md` for documented tasks.
 
 ### Core Responsibilities
 * Run builds/tests in sandbox and return raw logs + exit codes.
@@ -30,11 +30,15 @@ Input: commands + `[Doc Path]`.
 - [ ] raw logs exist
 - [ ] exit code exists
 - [ ] changed file list exists
-- If `[Doc Path]` exists, verify docs 01-04
+ - If `[Doc Path]` exists, verify the 4 docs exist and are consistent:
+   - `需求规格说明书.md`
+   - `技术设计与任务书.md`
+   - `测试计划与用例.md`
+   - `验证报告与日志.md`
 
 **BALANCED/HARDENING Mode:**
 - [ ] all FAST requirements
-- [ ] docs 01-04 and related reports verified (if applicable)
+ - [ ] the 4 docs verified (if applicable): 需求/设计/测试/验证
 - [ ] failing evidence from `test_red_author` captured (if applicable)
 - [ ] refactor result from `refactor_reviewer` recorded (if applicable)
 
