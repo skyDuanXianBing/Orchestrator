@@ -182,6 +182,8 @@ export class BlackboardManager {
         operations_seq: runtime.operationsSeq ?? 0,
         error_summary: runtime.errorSummary,
         summary: runtime.summary,
+        arbitration: runtime.arbitration,
+        review_context: runtime.reviewContext,
       };
     }
 

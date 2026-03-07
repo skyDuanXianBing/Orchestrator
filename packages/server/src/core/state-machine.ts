@@ -4,20 +4,59 @@
 
 import type {
   Category,
-  Mode,
   PhaseDefinition,
   PhaseRuntime,
   PipelineState,
 } from "@orchestrator/shared";
-import { PhaseStatus } from "@orchestrator/shared";
-import { getBasePhases } from "../pipeline/categories.js";
-import { getModeExtraPhases } from "../pipeline/modes.js";
+import type { Mode } from "@orchestrator/shared";
+import {
+  Category as PipelineCategory,
+  Mode as PipelineMode,
+  PhaseStatus,
+} from "@orchestrator/shared";
+import { getBasePhases, getMiniOverridePhases } from "../pipeline/categories.js";
+import { getModePhases } from "../pipeline/modes.js";
 import type { BlackboardManager } from "./blackboard.js";
 
 export class PipelineStateMachine {
   private state: PipelineState;
   private phases: readonly PhaseDefinition[];
   private blackboard: BlackboardManager;
+
+  private shouldUseLegacyFastModifyFlow(
+    category: Category,
+    mode: Mode,
+    initialState?: PipelineState,
+  ): boolean {
+    if (!initialState) {
+      return false;
+    }
+
+    if (category !== PipelineCategory.MODIFY || mode !== PipelineMode.FAST) {
+      return false;
+    }
+
+    return Object.prototype.hasOwnProperty.call(initialState.phases, "phase_3")
+      || Object.prototype.hasOwnProperty.call(initialState.phases, "phase_4");
+  }
+
+  private resolvePhases(
+    category: Category,
+    mode: Mode,
+    initialState?: PipelineState,
+  ): readonly PhaseDefinition[] {
+    if (mode === PipelineMode.MINI) {
+      return getMiniOverridePhases(category);
+    }
+
+    const basePhases = getBasePhases(category);
+
+    if (this.shouldUseLegacyFastModifyFlow(category, mode, initialState)) {
+      return getModePhases(category, PipelineMode.BALANCED, basePhases);
+    }
+
+    return getModePhases(category, mode, basePhases);
+  }
 
   private createDefaultPhaseRuntime(phase: PhaseDefinition): PhaseRuntime {
     return {
@@ -84,10 +123,8 @@ export class PipelineStateMachine {
     blackboard: BlackboardManager,
     initialState?: PipelineState,
   ) {
-    // 合并基础阶段 + 模式追加阶段 → 完整流水线
-    const basePhases = getBasePhases(category);
-    const extraPhases = getModeExtraPhases(mode);
-    this.phases = [...basePhases, ...extraPhases];
+    // MINI 使用专用最小流水线；其他模式按基础阶段与模式规则组装最终阶段序列。
+    this.phases = this.resolvePhases(category, mode, initialState);
 
     this.blackboard = blackboard;
 

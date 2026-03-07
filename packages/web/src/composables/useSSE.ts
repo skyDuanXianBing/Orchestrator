@@ -22,6 +22,23 @@ function t(key: string, params?: Record<string, unknown>): string {
   return i18n.global.t(key, params ?? {});
 }
 
+function toCodeMessage(
+  code: unknown,
+  params: Record<string, unknown>,
+  fallbackKey: string,
+  fallbackParams?: Record<string, unknown>,
+): string {
+  if (typeof code === "string" && code.trim().length > 0) {
+    const key = `sse.code.${code}`;
+    const translated = t(key, params);
+    if (translated !== key) {
+      return translated;
+    }
+  }
+
+  return t(fallbackKey, fallbackParams ?? params);
+}
+
 export function useSSE(taskId: string) {
   const connected = ref(false);
   const logs = ref<SSELogEntry[]>([]);
@@ -77,11 +94,47 @@ export function useSSE(taskId: string) {
         level = "warn";
         break;
       case "human_review_required":
-        message = t("sse.humanReviewRequired", { phaseId: data.phaseId ?? "" });
+        message = toCodeMessage(
+          data.code,
+          (data.params as Record<string, unknown>) ?? {},
+          "sse.humanReviewRequired",
+          { phaseId: data.phaseId ?? "" },
+        );
         level = "warn";
         break;
       case "human_review_completed":
         message = t("sse.humanReviewCompleted", { phaseId: data.phaseId ?? "" });
+        break;
+      case "arbitration_started":
+        message = toCodeMessage(
+          data.code,
+          (data.params as Record<string, unknown>) ?? {},
+          "sse.arbitrationStarted",
+          { phaseId: data.phaseId ?? "" },
+        );
+        level = "debug";
+        break;
+      case "arbitration_completed":
+        message = toCodeMessage(
+          data.code,
+          (data.params as Record<string, unknown>) ?? {},
+          "sse.arbitrationCompleted",
+          {
+            phaseId: data.phaseId ?? "",
+            action: data.recommended_action ?? "",
+          },
+        );
+        break;
+      case "arbitration_auto_action_applied":
+        message = toCodeMessage(
+          data.code,
+          (data.params as Record<string, unknown>) ?? {},
+          "sse.arbitrationAutoActionApplied",
+          {
+            phaseId: data.phaseId ?? "",
+            action: data.recommended_action ?? "",
+          },
+        );
         break;
       case "circuit_breaker_triggered":
         message = t("sse.circuitBreakerTriggered", { phaseId: data.phaseId ?? "" });
@@ -91,7 +144,14 @@ export function useSSE(taskId: string) {
         message = t("sse.pipelineCompleted");
         break;
       case "pipeline_failed":
-        message = t("sse.pipelineFailed", { error: data.error ?? "" });
+        message = toCodeMessage(
+          data.code,
+          (data.params as Record<string, unknown>) ?? {},
+          "sse.pipelineFailed",
+          {
+            error: data.message ?? data.error ?? "",
+          },
+        );
         level = "error";
         break;
       case "pipeline_aborted":
@@ -151,6 +211,9 @@ export function useSSE(taskId: string) {
       "phase_failed",
       "gate_passed",
       "gate_failed",
+      "arbitration_started",
+      "arbitration_completed",
+      "arbitration_auto_action_applied",
       "human_review_required",
       "human_review_completed",
       "circuit_breaker_triggered",

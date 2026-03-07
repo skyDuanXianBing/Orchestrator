@@ -83,9 +83,9 @@ export default {
   pipeline: {
     title: "Pipeline Phases",
     phaseDesc: {
-      phase_0: "Spec Clarifier",
+      phase_0: "Tech Scout",
       phase_0r: "Human Review",
-      phase_1: "Context Builder",
+      phase_1: "Red Test / Impl",
       phase_2: "Test / Impl",
       phase_3: "QA / Impl",
       phase_4: "Quality Assurance",
@@ -198,6 +198,7 @@ export default {
     categoryC: "C - DELETE (Remove feature)",
     categoryD: "D - READ (Query / Analysis)",
     modeLabel: "Mode",
+    modeMini: "Mini",
     modeFast: "Fast",
     modeBalanced: "Balanced",
     modeComprehensive: "Comprehensive",
@@ -225,6 +226,9 @@ export default {
     phaseFailed: "Phase {phaseId} failed — {error}",
     gatePassed: "Gate passed — {phaseId}",
     gateFailed: "Gate failed — {phaseId}",
+    arbitrationStarted: "Failure arbitration started — {phaseId}",
+    arbitrationCompleted: "Failure arbitration completed — {phaseId} ({action})",
+    arbitrationAutoActionApplied: "Arbitration action applied — {phaseId} ({action})",
     humanReviewRequired: "Waiting for human review — {phaseId}",
     humanReviewCompleted: "Human review completed — {phaseId}",
     circuitBreakerTriggered: "Circuit breaker triggered — {phaseId}",
@@ -232,6 +236,18 @@ export default {
     pipelineFailed: "Pipeline failed — {error}",
     pipelineAborted: "Pipeline aborted",
     blackboardUpdated: "Blackboard updated",
+    code: {
+      PIPELINE_GATE_FAILED: "Gate verification failed",
+      ARB_STARTED: "Failure arbitration started",
+      ARB_REQUEST_MORE_EVIDENCE: "More evidence is required before retry",
+      ARB_RETRY_SAME_AGENT: "Retrying with the same agent",
+      ARB_SWITCH_AGENT_APPLIED: "Agent switch strategy applied",
+      ARB_RETRY_LIMIT_REACHED: "Retry limit reached",
+      ARB_POLICY_BLOCKED: "Policy blocked. Pipeline stopped",
+      ARB_DECISION_BLOCK: "Arbitration blocked the pipeline",
+      ARB_HIGH_RISK_SWITCH: "High-risk switch requires human review",
+      ARB_UNCERTAIN_MORE_EVIDENCE: "Uncertain result requires human review",
+    },
   },
 
   // ─── Store error messages ───

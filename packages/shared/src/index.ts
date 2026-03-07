@@ -15,6 +15,10 @@ export {
 export type {
   PhaseDefinition,
   PhaseRuntime,
+  ArbitrationDecision,
+  ArbitrationDecisionAction,
+  ArbitrationRiskLevel,
+  ArbitrationReviewContext,
   PipelineDefinition,
   PipelineState,
   TaskSummary,

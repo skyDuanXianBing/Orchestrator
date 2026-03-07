@@ -74,6 +74,8 @@ function mapPhaseRecordToRuntime(record: PhaseRecord): PhaseRuntime {
     operationsSeq: record.operations_seq ?? 0,
     errorSummary: record.error_summary,
     summary: record.summary,
+    arbitration: record.arbitration,
+    reviewContext: record.review_context,
   };
 }
 
@@ -242,6 +244,11 @@ export class TaskManager {
         return;
       }
 
+      if (ctx.pipelineStatus === PipelineStatus.PAUSED_FOR_REVIEW) {
+        this.logger.info(`流水线暂停等待审阅: ${taskId}`);
+        return;
+      }
+
       if (ctx.pipelineStatus !== PipelineStatus.FAILED) {
         this.setPipelineStatus(ctx, PipelineStatus.COMPLETED);
         this.logger.info(`流水线完成: ${taskId}`);
@@ -303,6 +310,12 @@ export class TaskManager {
     if (ctx.reviewResolve) {
       ctx.reviewResolve(review);
       ctx.reviewResolve = null;
+    } else {
+      // 仲裁触发的审阅暂停会在 runner 返回后进入这里，复用同一接口恢复执行。
+      void this.startPipeline(taskId).catch((error) => {
+        const message = error instanceof Error ? error.message : "unknown review resume error";
+        this.logger.error(`审阅后恢复流水线失败: ${taskId}`, message);
+      });
     }
 
     const currentPhase = ctx.stateMachine.getCurrentPhase();
@@ -322,10 +335,12 @@ export class TaskManager {
   /** 获取可用代理列表 */
   getAvailableAgents(): Array<{ name: string; description: string }> {
     return [
+      { name: "tech_scout", description: "需求与上下文侦察" },
       { name: "spec_clarifier", description: "需求澄清 → 验收标准" },
       { name: "context_builder", description: "构建代码上下文 → 黑板" },
       { name: "test_red_author", description: "编写失败测试（Red）" },
       { name: "impl_green_coder", description: "编写实现代码（Green）" },
+      { name: "failure_arbitrator", description: "失败归因与动作仲裁" },
       { name: "quality_assurance", description: "执行构建/测试验证" },
       { name: "refactor_reviewer", description: "重构（保持行为不变）" },
       { name: "compliance_auditor", description: "三合一静态审计" },

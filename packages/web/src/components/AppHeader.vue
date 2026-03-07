@@ -55,10 +55,14 @@ function toggleLocale(): void {
 
 <style scoped>
 .header {
-  background: var(--color-bg-card);
-  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.82);
+  border-bottom: 1px solid rgba(191, 209, 233, 0.7);
+  backdrop-filter: blur(14px);
   padding: 0 32px;
-  height: 56px;
+  height: 64px;
   flex-shrink: 0;
 }
 
@@ -86,26 +90,29 @@ function toggleLocale(): void {
 
 .header__logo-icon {
   font-size: 1.3rem;
+  color: var(--color-primary);
 }
 
 .header__nav {
   display: flex;
-  gap: 20px;
+  gap: 8px;
   flex: 1;
 }
 
 .header__link {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
-  padding: 4px 0;
-  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   transition: all 0.15s ease;
 }
 
 .header__link:hover,
 .header__link.router-link-active {
   color: var(--color-text);
-  border-bottom-color: var(--color-primary);
+  border-color: rgba(59, 130, 246, 0.14);
+  background: rgba(59, 130, 246, 0.08);
 }
 
 .header__right {
@@ -129,12 +136,17 @@ function toggleLocale(): void {
 .header__lang-btn:hover {
   color: var(--color-text);
   border-color: var(--color-primary);
+  background: #ffffff;
 }
 
 .header__status {
   display: flex;
   align-items: center;
   gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .header__dot {
@@ -155,5 +167,24 @@ function toggleLocale(): void {
 .header__status-text {
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px;
+    height: auto;
+  }
+
+  .header__inner {
+    min-height: 64px;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 0;
+  }
+
+  .header__nav {
+    order: 3;
+    width: 100%;
+  }
 }
 </style>

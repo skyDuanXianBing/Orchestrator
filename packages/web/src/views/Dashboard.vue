@@ -170,41 +170,47 @@ async function handleDelete(taskId: string): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .dashboard__title {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
+  color: var(--color-text);
 }
 
 .dashboard__error {
   padding: 12px 16px;
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(220, 38, 38, 0.08);
   border: 1px solid var(--color-error);
   border-radius: var(--radius-sm);
   color: var(--color-error);
   margin-bottom: 16px;
   font-size: 0.875rem;
+  box-shadow: var(--shadow-sm);
 }
 
 .dashboard__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 16px;
+  gap: 20px;
 }
 
 .task-card {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  gap: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(247, 250, 255, 0.96) 100%);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .task-card:hover {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .task-card__top {
@@ -218,17 +224,19 @@ async function handleDelete(taskId: string): Promise<void> {
   color: var(--color-text-muted);
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .task-card__requirement {
   font-size: 0.9rem;
   line-height: 1.5;
   color: var(--color-text);
+  min-height: 54px;
 }
 
 .task-card__meta {
   display: flex;
-  gap: 20px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -236,6 +244,11 @@ async function handleDelete(taskId: string): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 92px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-panel);
+  border: 1px solid rgba(216, 227, 240, 0.85);
 }
 
 .task-card__label {
@@ -260,7 +273,7 @@ async function handleDelete(taskId: string): Promise<void> {
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid var(--color-border);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .task-card__id {
@@ -277,5 +290,11 @@ async function handleDelete(taskId: string): Promise<void> {
 .task-card__actions {
   display: flex;
   justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .dashboard__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

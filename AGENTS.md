@@ -1,181 +1,148 @@
 # AGENTS.md — Orchestrator
 
 > Opencode Orchestrator: SDK-driven pipeline for AI agent coordination.
-> pnpm monorepo with three packages: `server`, `shared`, `web`.
+> Monorepo: `packages/shared`, `packages/server`, `packages/web`.
 
 ## Build / Lint / Test Commands
 
 ```bash
-# ── Install ──
+# Install dependencies
 pnpm install
 
-# ── Build (order matters: shared → server → web) ──
-pnpm build              # builds all three in sequence
-pnpm build:shared       # pnpm --filter @orchestrator/shared build
-pnpm build:server       # pnpm --filter @orchestrator/server build
-pnpm build:web          # pnpm --filter @orchestrator/web build
+# Development
+pnpm dev                # run server + web concurrently
+pnpm dev:server         # server only (tsx watch)
+pnpm dev:web            # web only (vite)
 
-# ── Dev ──
-pnpm dev                # starts server (port 3000) & web (port 5173) concurrently
-pnpm dev:server         # tsx watch packages/server/src/index.ts
-pnpm dev:web            # vite dev server
+# Build (recommended order: shared -> server -> web)
+pnpm build
+pnpm build:shared
+pnpm build:server
+pnpm build:web
 
-# ── Test (vitest, server package only) ──
-pnpm test                                           # run all server tests once
-pnpm --filter @orchestrator/server test:watch        # vitest in watch mode
+# Test (Vitest, server package)
+pnpm test
+pnpm --filter @orchestrator/server test:watch
 
-# Run a single test file:
+# Run a single test file
 pnpm --filter @orchestrator/server exec vitest run test/circuit-breaker.test.ts
 
-# Run a single test by name:
+# Run a single test by test name pattern
 pnpm --filter @orchestrator/server exec vitest run -t "should stop after max retries"
 
-# ── Lint ──
-pnpm lint               # runs lint across all packages (pnpm -r lint)
+# Lint / clean
+pnpm lint
+pnpm clean
 
-# ── Clean ──
-pnpm clean              # removes dist/ in all packages
+# Shared package manual verification
+node packages/shared/test/verify-agent-result.mjs
 ```
 
 ## Project Structure
 
-```
+```text
 packages/
-  shared/          # @orchestrator/shared — shared types & utilities (pure TS, no runtime deps)
-    src/types/     # pipeline.ts, api.ts, events.ts, blackboard.ts, agent-result.ts
-  server/          # @orchestrator/server — Express backend
+  shared/      # @orchestrator/shared: shared types/utilities (pure TS)
     src/
-      core/        # blackboard, circuit-breaker, client, gate-verifier, prompt-builder, state-machine
-      pipeline/    # categories.ts, modes.ts, runner.ts
-      routes/      # task.ts, pipeline.ts, events.ts, health.ts
-      services/    # task-manager.ts
-      utils/       # event-bus.ts, id-generator.ts, logger.ts
-    test/          # vitest test files (*.test.ts)
-  web/             # @orchestrator/web — Vue 3 + Vite frontend
+      index.ts
+      types/
+    test/
+      verify-agent-result.mjs
+  server/      # @orchestrator/server: Express backend
     src/
-      components/  # AppHeader, PhaseCard, PipelineGraph, LogStream, etc.
-      composables/ # useSSE.ts, usePolling.ts
-      stores/      # Pinia stores (task.ts)
-      utils/       # http.ts (centralized HTTP client)
-      views/       # Dashboard, CreateTask, TaskDetail
-      i18n/        # vue-i18n translations
-agents/            # Agent instruction markdown files (one per sub-agent role)
+      core/
+      db/
+      pipeline/
+      routes/
+      services/
+      utils/
+      index.ts
+    test/
+      *.test.ts
+  web/         # @orchestrator/web: Vue 3 + Vite frontend
+    src/
+      components/
+      composables/
+      i18n/
+      stores/
+      utils/
+      views/
+      App.vue
+      main.ts
 ```
-
-## TypeScript Configuration
-
-- **Target**: ES2022, **Module**: ESNext, **Module Resolution**: bundler
-- **Strict mode** is enabled globally (`tsconfig.base.json`)
-- All packages use `"type": "module"` in package.json (pure ESM)
-- Server & shared emit declarations (`declaration: true`, `declarationMap: true`)
-- Web disables declarations; uses `jsx: "preserve"` with `jsxImportSource: "vue"`
 
 ## Code Style Guidelines
 
 ### Imports
 
-- **Always use `.js` extensions** in relative imports (ESM requirement):
-  ```ts
-  import { TaskManager } from "./services/task-manager.js";  // correct
-  import { TaskManager } from "./services/task-manager";     // wrong
-  ```
-- Use `import type` for type-only imports; separate value and type imports:
-  ```ts
-  import { Router } from "express";
-  import type { Request, Response } from "express";
-  ```
-- Import shared types from `@orchestrator/shared` (workspace dependency):
-  ```ts
-  import { Category, Mode, PhaseStatus } from "@orchestrator/shared";
-  import type { PipelineState, BlackboardJson } from "@orchestrator/shared";
-  ```
-- Use `node:` prefix for Node.js built-in modules:
-  ```ts
-  import fs from "node:fs";
-  import path from "node:path";
-  ```
-- **Static imports only** — no dynamic `import()` unless lazy loading is required.
+- Always use static imports; avoid dynamic `import()` unless truly needed.
+- Always include `.js` extension for relative TS/ESM imports.
+- Use `import type` for type-only imports.
+- Use `node:` prefix for Node built-ins.
+- Import shared contracts from `@orchestrator/shared` instead of duplicating types.
 
-### Formatting & File Structure
+### Formatting and File Organization
 
-- Double quotes for strings.
-- Trailing commas in multi-line structures.
-- File headers follow this pattern:
-  ```ts
-  // ============================================
-  // module/file.ts — Brief Chinese description
-  // ============================================
-  ```
-- Section separators within files use: `// ─── Section Name ───`
+- Use double quotes consistently.
+- Keep trailing commas in multi-line objects/arrays/parameters.
+- Prefer small, focused modules in kebab-case filenames.
+- Existing files commonly use header and section comment separators; keep consistency.
 
 ### Naming Conventions
 
-| Kind              | Convention       | Example                       |
-|-------------------|------------------|-------------------------------|
-| Variables/funcs   | camelCase        | `taskManager`, `fetchTasks`   |
-| Constants         | UPPER_SNAKE_CASE | `MAX_RETRIES`, `CORS_ORIGIN`  |
-| Classes           | PascalCase       | `CircuitBreaker`, `EventBus`  |
-| Enums             | PascalCase       | `PhaseStatus`, `Category`     |
-| Enum members      | UPPER_SNAKE_CASE | `IN_PROGRESS`, `AGENT_GATE`   |
-| Interfaces/Types  | PascalCase       | `PhaseRuntime`, `SSELogEntry` |
-| Files             | kebab-case       | `circuit-breaker.ts`          |
-| Vue components    | PascalCase       | `PhaseCard.vue`               |
-| Composables       | camelCase `use*` | `useSSE.ts`, `usePolling.ts`  |
-| Test files        | kebab-case       | `circuit-breaker.test.ts`     |
+- Variables/functions: `camelCase`.
+- Constants: `UPPER_SNAKE_CASE`.
+- Classes/enums/interfaces/types/components: `PascalCase`.
+- Test files: `*.test.ts` in kebab-case.
+- Composables: `useXxx.ts`.
 
-### Types & Interfaces
+### Types and Data Modeling
 
-- Prefer `interface` for object shapes; use `type` for unions/aliases.
-- Enums use string values (not numeric): `PENDING = "PENDING"`.
-- Mark immutable definitions with `readonly`:
-  ```ts
-  export interface PhaseDefinition {
-    readonly phaseId: string;
-    readonly agent: AgentName | null;
-  }
-  ```
-- Explicit return types on all exported functions.
-- Use `unknown` instead of `any`; narrow with type guards or `instanceof`.
+- Prefer `interface` for object contracts; use `type` for unions and aliases.
+- Enums should use string values.
+- Use `readonly` for immutable fields in shared contracts.
+- Avoid `any`; use `unknown` and narrow with guards.
 
 ### Error Handling
 
-- Wrap fallible operations in `try/catch`; never silently swallow errors.
-- Pattern for catching unknown errors:
-  ```ts
-  catch (err) {
-    const message = err instanceof Error ? err.message : "未知错误";
-  }
-  ```
-- API responses use unified `ApiResponse<T>` envelope: `{ success, data, error }`.
-- Use custom error classes where appropriate (e.g., `HttpError`).
+- Wrap fallible operations in `try/catch`.
+- Never swallow errors silently.
+- Handle unknown errors with `instanceof Error` narrowing.
+- Use consistent API envelope: `{ success, data, error }`.
+- Prefer dedicated error classes (e.g., `HttpError`) for transport/domain errors.
 
-### Vue 3 / Frontend
+### Backend and API Conventions
 
-- **Vue 3 with `<script setup lang="ts">`** — no Options API.
-- **Pinia** for all global state; use Composition API style (`defineStore("name", () => {})`).
-- Prefer `ref()` over `reactive()`.
-- Scoped styles: `<style scoped>`.
-- **Centralized HTTP**: all requests go through `utils/http.ts` (`httpGet`, `httpPost`, `httpDelete`). Never use raw `fetch()` or `axios` directly in components/stores.
-- Composables go in `composables/` and are named `use*.ts`.
-- **Internationalization (MANDATORY)**: All user-facing text in the frontend **MUST** use `vue-i18n` (`t('key')`)。**STRICTLY PROHIBITED** to hardcode any visible text (Chinese, English, or any language) in templates, components, stores, or composables. This includes but is not limited to: button labels, form placeholders, status text, error messages, select/option display text, table headers, and tooltips. New i18n keys must be added to both `i18n/locales/zh-CN.ts` and `i18n/locales/en.ts` simultaneously.
+- Keep all HTTP routes under `/api/*`.
+- Prefer router factories with dependency injection (e.g., `createXxxRouter(deps)`).
+- Return typed JSON responses based on shared `ApiResponse<T>`.
+- Do not hardcode secrets or deployment URLs; rely on env vars.
 
-### API Design
+### Frontend (Vue 3) Conventions
 
-- All routes prefixed with `/api/`.
-- Vite dev proxy forwards `/api` to `http://localhost:3000`.
-- Consistent JSON response: `{ success: boolean; data: T | null; error: string | null }`.
-- Router factories: `createXxxRouter(dependencies): Router`.
+- Use Vue 3 with `<script setup lang="ts">`.
+- Use Pinia for shared/global state.
+- Prefer `ref()` for reactivity unless `reactive()` is clearly better.
+- Use scoped styles in SFCs.
+- Use centralized HTTP utilities in `src/utils/http.ts`; do not call `fetch`/`axios` directly in views/stores/components.
+- All user-facing strings must go through `vue-i18n` (`t("...")`).
+- When adding new UI text, update both locale files:
+  - `packages/web/src/i18n/locales/zh-CN.ts`
+  - `packages/web/src/i18n/locales/en.ts`
 
-### Testing
+## Testing Guidelines
 
-- **Framework**: Vitest (server package).
-- Tests live in `packages/server/test/` as `*.test.ts`.
-- Import test utilities from vitest: `import { describe, expect, it, afterEach } from "vitest"`.
-- Use temp directories for filesystem tests; clean up in `afterEach`.
-- Shared package has a manual verification script: `node packages/shared/test/verify-agent-result.mjs`.
+- Test framework is Vitest in `packages/server/test`.
+- Keep tests deterministic and isolated; clean temporary resources in `afterEach`.
+- Prefer targeted runs during iteration (single file or `-t` pattern).
+- Before delivery, run at least the relevant tests and a build for impacted packages.
 
-### Environment & Configuration
+## Cursor / Copilot Rule Files
 
-- Node.js >= 18, pnpm >= 8.
-- No hardcoded URLs — use env vars (`PORT`, `CORS_ORIGIN`, `DEBUG`).
-- `.env` files are gitignored; never commit secrets.
+Scanned locations and results:
+
+- `.cursor/rules/`: not found
+- `.cursorrules`: not found
+- `.github/copilot-instructions.md`: not found
+
+If these files are added later, merge their directives into this document and treat conflicts as high-priority review items.

@@ -108,7 +108,7 @@ function handleSelect(): void {
   outline: none;
   cursor: pointer;
   text-align: left;
-  background: var(--color-bg-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.96) 100%);
   border-radius: var(--radius-md);
   padding: 14px;
   min-width: 180px;
@@ -116,20 +116,22 @@ function handleSelect(): void {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .phase-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .phase-card:focus-visible {
-  box-shadow: 0 0 0 2px var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
 }
 
 .phase-card--current {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 1px var(--color-primary), var(--shadow-sm);
+  box-shadow: 0 0 0 1px var(--color-primary), var(--shadow-md);
 }
 
 .phase-card--in_progress {
@@ -158,20 +160,30 @@ function handleSelect(): void {
 }
 
 .phase-card__status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(100, 116, 139, 0.10);
   font-size: 1rem;
 }
 
 .phase-card--success .phase-card__status-icon,
 .phase-card--approved_by_human .phase-card__status-icon {
   color: var(--color-success);
+  background: rgba(22, 163, 74, 0.10);
 }
 
 .phase-card--failed .phase-card__status-icon {
   color: var(--color-error);
+  background: rgba(220, 38, 38, 0.10);
 }
 
 .phase-card--in_progress .phase-card__status-icon {
   color: var(--color-primary);
+  background: rgba(59, 130, 246, 0.10);
   animation: pulse 2s ease-in-out infinite;
 }
 

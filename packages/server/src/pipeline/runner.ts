@@ -4,12 +4,17 @@
 
 import type { OpencodeClient, Part, Event as OpencodeEvent } from "@opencode-ai/sdk";
 import type {
+  ArbitrationDecision,
+  ArbitrationDecisionAction,
+  ArbitrationRiskLevel,
   BlackboardJson,
   OperationTimelineEntry,
   PhaseDefinition,
   ReviewRequest,
 } from "@orchestrator/shared";
 import {
+  AgentName,
+  Mode as PipelineMode,
   PipelineStatus,
   PhaseStatus,
   PhaseType,
@@ -21,10 +26,32 @@ import type { GateVerifier } from "../core/gate-verifier.js";
 import type { CircuitBreaker } from "../core/circuit-breaker.js";
 import type { BlackboardManager } from "../core/blackboard.js";
 import { PromptBuilder } from "../core/prompt-builder.js";
+import {
+  arbitrateFailureWithMode,
+  type ArbitrationReviewContextMeta,
+} from "../core/arbitration/failure-arbitrator.js";
 import type { EventBus } from "../utils/event-bus.js";
 import type { Logger } from "../utils/logger.js";
 
 const MAX_OPERATION_TIMELINE_ENTRIES = 500;
+const MINI_SCOUT_TEXT_SUMMARY_LIMIT = 500;
+const STRUCTURED_RESULT_PARSE_FAILURE_SUMMARY = "Agent response is not valid structured JSON.";
+const ARBITRATION_CONFIDENCE_THRESHOLD = 0.6;
+const FALLBACK_ARBITRATION_REASON_CODE = "ARB_FALLBACK_RETRY";
+const ALLOWED_SWITCH_AGENTS: readonly AgentName[] = [
+  AgentName.TECH_SCOUT,
+  AgentName.SPEC_CLARIFIER,
+  AgentName.CONTEXT_BUILDER,
+  AgentName.TEST_RED_AUTHOR,
+  AgentName.IMPL_GREEN_CODER,
+  AgentName.QUALITY_ASSURANCE,
+  AgentName.REFACTOR_REVIEWER,
+  AgentName.COMPLIANCE_AUDITOR,
+  AgentName.SECURITY_REVIEWER,
+  AgentName.PERF_REVIEWER,
+  AgentName.DEPENDENCY_GUARD,
+  AgentName.RELEASE_GATE,
+];
 
 interface OperationDraft {
   dedupeKey: string;
@@ -54,6 +81,7 @@ export interface PipelineRunnerBindings {
 export class PipelineRunner {
   private readonly promptBuilder = new PromptBuilder();
   private readonly revisionFeedbackByPhase = new Map<string, string>();
+  private latestArbitrationMeta: ArbitrationReviewContextMeta | null = null;
   private client: OpencodeClient | null = null;
   private activeSessionId: string | null = null;
   private aborted = false;
@@ -74,6 +102,10 @@ export class PipelineRunner {
     });
 
     while (!this.stateMachine.isComplete()) {
+      if (this.bindings.getPipelineStatus() === PipelineStatus.PAUSED_FOR_REVIEW) {
+        return;
+      }
+
       if (this.shouldStop()) {
         this.emit(SSEEventType.PIPELINE_ABORTED, { reason: "aborted" });
         return;
@@ -97,6 +129,10 @@ export class PipelineRunner {
       } else {
         await this.runAgentPhase(phase);
       }
+    }
+
+    if (this.bindings.getPipelineStatus() === PipelineStatus.PAUSED_FOR_REVIEW) {
+      return;
     }
 
     if (this.shouldStop()) {
@@ -257,7 +293,9 @@ export class PipelineRunner {
   }
 
   private async runAgentPhase(phase: PhaseDefinition): Promise<void> {
-    if (!phase.agent) {
+    const activeAgent = this.resolvePhaseAgent(phase);
+
+    if (!activeAgent) {
       throw new Error(`Phase ${phase.phaseId} agent is missing`);
     }
 
@@ -265,6 +303,7 @@ export class PipelineRunner {
     const startedAt = new Date().toISOString();
 
     this.stateMachine.updatePhase(phase.phaseId, {
+      agent: activeAgent,
       status: PhaseStatus.IN_PROGRESS,
       startedAt,
       finishedAt: null,
@@ -273,7 +312,7 @@ export class PipelineRunner {
 
     this.emit(SSEEventType.PHASE_STARTED, {
       phaseId: phase.phaseId,
-      agent: phase.agent,
+      agent: activeAgent,
       description: phase.description,
       phaseIndex: this.stateMachine.getCurrentPhaseIndex(),
       totalPhases: this.stateMachine.getTotalPhases(),
@@ -302,7 +341,7 @@ export class PipelineRunner {
         state.projectPath,
         sessionId,
         phase.phaseId,
-        phase.agent,
+        activeAgent,
         eventStreamController,
       );
 
@@ -313,7 +352,7 @@ export class PipelineRunner {
         query: { directory: state.projectPath },
         path: { id: sessionId },
         body: {
-          agent: phase.agent,
+          agent: activeAgent,
           parts: [
             {
               type: "text",
@@ -334,7 +373,11 @@ export class PipelineRunner {
       await this.stopEventForwarding(eventStreamController, eventForwardingTask);
 
       const rawText = this.extractText(promptResult.data.parts);
-      const structuredResult = parseAgentResult(rawText);
+      const structuredResult = this.parseStructuredResultWithMiniCompatibility(
+        phase,
+        state.mode,
+        rawText,
+      );
       const finishedAt = new Date().toISOString();
       const status = structuredResult.status === "SUCCESS"
         ? PhaseStatus.SUCCESS
@@ -372,10 +415,13 @@ export class PipelineRunner {
       });
 
       const phaseRecord = this.bindings.blackboard.read().phases[phase.phaseId];
-      const gateResult = this.gateVerifier.verify(phaseRecord, phase.type);
+      const gateResult = this.gateVerifier.verify(phaseRecord, phase.type, {
+        category: state.category,
+        mode: state.mode,
+      });
 
       if (gateResult.passed) {
-        this.circuitBreaker.reset(phase.agent);
+        this.circuitBreaker.reset(activeAgent);
 
         this.emit(SSEEventType.GATE_PASSED, {
           phaseId: phase.phaseId,
@@ -384,7 +430,7 @@ export class PipelineRunner {
 
         this.emit(SSEEventType.PHASE_COMPLETED, {
           phaseId: phase.phaseId,
-          agent: phase.agent,
+          agent: activeAgent,
           summary: structuredResult.summary,
           artifacts: structuredResult.artifact_pointers,
         });
@@ -397,10 +443,11 @@ export class PipelineRunner {
         phase,
         gateResult.reason,
         structuredResult.error_summary,
+        activeAgent,
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown phase error";
-      await this.handleAgentFailure(phase, message, message);
+      await this.handleAgentFailure(phase, message, message, activeAgent);
     } finally {
       await this.stopEventForwarding(eventStreamController, eventForwardingTask);
       this.activeSessionId = null;
@@ -411,44 +458,260 @@ export class PipelineRunner {
     phase: PhaseDefinition,
     reason: string,
     details: string | null,
+    failedAgent?: AgentName,
   ): Promise<void> {
-    if (!phase.agent) {
+    const activeAgent = failedAgent ?? this.resolvePhaseAgent(phase);
+    if (!activeAgent) {
       throw new Error(`Phase ${phase.phaseId} agent is missing`);
     }
 
     const fingerprint = `${phase.phaseId}:${reason}`;
-    const retryResult = this.circuitBreaker.recordFailure(phase.agent, fingerprint);
+    const retryResult = this.circuitBreaker.recordFailure(activeAgent, fingerprint);
     const runtime = this.stateMachine.getState().phases[phase.phaseId];
     const finishedAt = new Date().toISOString();
 
     this.stateMachine.updatePhase(phase.phaseId, {
+      agent: activeAgent,
       status: PhaseStatus.FAILED,
       retryCount: retryResult.currentCount,
       finishedAt,
       errorSummary: reason,
       summary: details,
       startedAt: runtime.startedAt,
+      reviewContext: undefined,
     });
 
     this.emit(SSEEventType.GATE_FAILED, {
       phaseId: phase.phaseId,
-      reason,
+      code: "PIPELINE_GATE_FAILED",
+      params: {
+        phase: phase.phaseId,
+      },
+      message: reason,
     });
 
     this.emit(SSEEventType.PHASE_FAILED, {
       phaseId: phase.phaseId,
-      agent: phase.agent,
+      agent: activeAgent,
       errorSummary: reason,
       retryCount: retryResult.currentCount,
       maxRetries: retryResult.maxCount,
       willRetry: retryResult.shouldRetry,
     });
 
+    this.emit(SSEEventType.ARBITRATION_STARTED, {
+      phaseId: phase.phaseId,
+      agent: activeAgent,
+      code: "ARB_STARTED",
+      params: {
+        phase: phase.phaseId,
+      },
+      failure_reason: reason,
+    });
+
+    this.resetLatestArbitrationMeta();
+
+    let arbitration = await this.invokeFailureArbitration(
+      phase,
+      activeAgent,
+      reason,
+      details,
+      retryResult.shouldRetry,
+      retryResult.currentCount,
+      retryResult.maxCount,
+      fingerprint,
+    );
+    arbitration = this.normalizeArbitrationDecision(arbitration, phase, reason, details);
+    const arbitrationMeta = this.latestArbitrationMeta;
+
+    if (arbitrationMeta?.unknown_mode_value) {
+      this.emit(SSEEventType.LOG_MESSAGE, {
+        level: "warn",
+        code: "ARB_INVALID_MODE_FALLBACK_HYBRID",
+        params: {
+          input: arbitrationMeta.unknown_mode_value,
+          mode: arbitrationMeta.arbitration_mode,
+        },
+        message: `Unknown ARBITRATION_MODE: ${arbitrationMeta.unknown_mode_value}, use hybrid instead.`,
+        agent: activeAgent,
+        phaseId: phase.phaseId,
+      });
+    }
+
+    if (arbitrationMeta?.fallback_used) {
+      this.emit(SSEEventType.LOG_MESSAGE, {
+        level: "warn",
+        code: "ARB_LLM_FALLBACK_RULE",
+        params: {
+          phase: phase.phaseId,
+          error_type: arbitrationMeta.llm_error_type ?? "unknown",
+          mode: arbitrationMeta.arbitration_mode,
+        },
+        message: "LLM arbitration failed, fallback to rule arbitrator.",
+        agent: activeAgent,
+        phaseId: phase.phaseId,
+      });
+    }
+
+    this.stateMachine.updatePhase(phase.phaseId, {
+      arbitration,
+      reviewContext: undefined,
+    });
+
+    this.emit(SSEEventType.ARBITRATION_COMPLETED, {
+      phaseId: phase.phaseId,
+      decision_id: arbitration.decision_id,
+      recommended_action: arbitration.recommended_action,
+      risk_level: arbitration.risk_level,
+      confidence: arbitration.confidence,
+      uncertain: arbitration.uncertain,
+      failure_class: arbitration.failure_class,
+      code: arbitration.reason_code,
+      params: arbitration.reason_params ?? {},
+      message: arbitration.summary,
+    });
+
+    if (arbitration.recommended_action === "BLOCK") {
+      this.emit(SSEEventType.ARBITRATION_AUTO_ACTION_APPLIED, {
+        phaseId: phase.phaseId,
+        recommended_action: arbitration.recommended_action,
+        reason_code: arbitration.reason_code,
+        code: arbitration.reason_code,
+        params: arbitration.reason_params ?? {},
+      });
+
+      this.emit(SSEEventType.PIPELINE_FAILED, {
+        phaseId: phase.phaseId,
+        code: arbitration.reason_code,
+        params: arbitration.reason_params ?? {},
+        message: arbitration.summary,
+      });
+
+      throw new Error(`Phase ${phase.phaseId} failed permanently: ${arbitration.reason_code}`);
+    }
+
+    if (this.shouldRequireHumanReview(arbitration)) {
+      const reviewContext = {
+        phase_id: phase.phaseId,
+        reason_code: arbitration.reason_code,
+        reason_params: arbitration.reason_params ?? {},
+        recommended_action: arbitration.recommended_action,
+        risk_level: arbitration.risk_level,
+        confidence: arbitration.confidence,
+        uncertain: arbitration.uncertain,
+        failure_reason: reason,
+        failure_details: details,
+        failure_fingerprint: fingerprint,
+        arbitration_mode: arbitrationMeta?.arbitration_mode,
+        llm_attempted: arbitrationMeta?.llm_attempted,
+        fallback_used: arbitrationMeta?.fallback_used,
+        llm_error_type: arbitrationMeta?.llm_error_type,
+        parse_error: arbitrationMeta?.parse_error,
+        raw_response_snippet: arbitrationMeta?.raw_response_snippet,
+        evidence_request: arbitrationMeta?.evidence_request ?? arbitration.evidence_request ?? null,
+      };
+
+      this.stateMachine.updatePhase(phase.phaseId, {
+        reviewContext,
+      });
+
+      this.bindings.setPipelineStatus(PipelineStatus.PAUSED_FOR_REVIEW);
+
+      this.emit(SSEEventType.HUMAN_REVIEW_REQUIRED, {
+        phaseId: phase.phaseId,
+        code: arbitration.reason_code,
+        params: arbitration.reason_params ?? {},
+        arbitration: reviewContext,
+        message: arbitration.summary,
+      });
+      return;
+    }
+
+    this.emit(SSEEventType.ARBITRATION_AUTO_ACTION_APPLIED, {
+      phaseId: phase.phaseId,
+      recommended_action: arbitration.recommended_action,
+      reason_code: arbitration.reason_code,
+      code: arbitration.reason_code,
+      params: arbitration.reason_params ?? {},
+    });
+
+    if (arbitration.recommended_action === "PASS_WITH_WARN") {
+      this.stateMachine.updatePhase(phase.phaseId, {
+        status: PhaseStatus.SUCCESS,
+        errorSummary: null,
+        summary: arbitration.summary ?? details,
+        finishedAt: new Date().toISOString(),
+      });
+
+      this.emit(SSEEventType.PHASE_COMPLETED, {
+        phaseId: phase.phaseId,
+        agent: activeAgent,
+        summary: arbitration.summary ?? details,
+        artifacts: runtime.artifacts,
+      });
+
+      const stateMachineWithAdvance = this.stateMachine as unknown as {
+        advance?: () => void;
+      };
+      if (typeof stateMachineWithAdvance.advance === "function") {
+        stateMachineWithAdvance.advance();
+      }
+      return;
+    }
+
+    if (arbitration.recommended_action === "REQUEST_MORE_EVIDENCE") {
+      const evidenceRequest = arbitration.evidence_request
+        ?? "请补充本阶段门禁证据，并在结果中明确产出物与改动文件。";
+      this.revisionFeedbackByPhase.set(phase.phaseId, evidenceRequest);
+
+      this.emit(SSEEventType.LOG_MESSAGE, {
+        level: "warn",
+        code: "ARB_REQUEST_MORE_EVIDENCE",
+        params: {
+          phase: phase.phaseId,
+        },
+        message: evidenceRequest,
+        agent: activeAgent,
+        phaseId: phase.phaseId,
+      });
+
+      return;
+    }
+
+    if (arbitration.recommended_action === "SWITCH_AGENT") {
+      const nextAgent = arbitration.recommended_agent;
+      if (nextAgent && this.isSwitchAllowed(nextAgent) && nextAgent !== activeAgent) {
+        this.stateMachine.updatePhase(phase.phaseId, {
+          agent: nextAgent,
+        });
+
+        this.emit(SSEEventType.LOG_MESSAGE, {
+          level: "info",
+          code: "ARB_SWITCH_AGENT_APPLIED",
+          params: {
+            from: activeAgent,
+            to: nextAgent,
+          },
+          message: `Switch agent from ${activeAgent} to ${nextAgent}`,
+          agent: nextAgent,
+          phaseId: phase.phaseId,
+        });
+      }
+
+      return;
+    }
+
     if (retryResult.shouldRetry) {
       this.emit(SSEEventType.LOG_MESSAGE, {
         level: "warn",
+        code: "ARB_RETRY_SAME_AGENT",
+        params: {
+          phase: phase.phaseId,
+          retry: retryResult.currentCount,
+          max: retryResult.maxCount,
+        },
         message: `阶段 ${phase.phaseId} 失败，准备第 ${retryResult.currentCount}/${retryResult.maxCount} 次重试`,
-        agent: phase.agent,
+        agent: activeAgent,
         phaseId: phase.phaseId,
       });
       return;
@@ -456,17 +719,266 @@ export class PipelineRunner {
 
     this.emit(SSEEventType.CIRCUIT_BREAKER_TRIGGERED, {
       phaseId: phase.phaseId,
-      reason,
+      code: "ARB_RETRY_LIMIT_REACHED",
+      params: {
+        phase: phase.phaseId,
+        retry: retryResult.currentCount,
+        max: retryResult.maxCount,
+      },
+      message: reason,
       retryCount: retryResult.currentCount,
       maxRetries: retryResult.maxCount,
     });
+  }
 
-    this.emit(SSEEventType.PIPELINE_FAILED, {
-      phaseId: phase.phaseId,
-      reason,
-    });
+  private resolvePhaseAgent(phase: PhaseDefinition): AgentName | null {
+    const runtime = this.stateMachine.getState().phases[phase.phaseId];
+    if (runtime && runtime.agent) {
+      return runtime.agent;
+    }
+    return phase.agent;
+  }
 
-    throw new Error(`Phase ${phase.phaseId} failed permanently: ${reason}`);
+  private normalizeArbitrationDecision(
+    decision: ArbitrationDecision,
+    phase: PhaseDefinition,
+    reason: string,
+    details: string | null,
+  ): ArbitrationDecision {
+    const rawDecisionId = typeof decision.decision_id === "string" ? decision.decision_id : "";
+    const rawReasonCode = typeof decision.reason_code === "string" ? decision.reason_code : "";
+    const rawFailureClass = typeof decision.failure_class === "string" ? decision.failure_class : "";
+
+    const normalizedReasonCode = rawReasonCode.trim().length > 0
+      ? rawReasonCode
+      : FALLBACK_ARBITRATION_REASON_CODE;
+
+    return {
+      ...decision,
+      decision_id: rawDecisionId.trim().length > 0
+        ? rawDecisionId
+        : `${phase.phaseId}-${Date.now()}`,
+      phase_id: phase.phaseId,
+      recommended_action: this.normalizeRecommendedAction(decision.recommended_action),
+      risk_level: this.normalizeRiskLevel(decision.risk_level),
+      confidence: this.normalizeConfidence(decision.confidence),
+      reason_code: normalizedReasonCode,
+      reason_params: decision.reason_params ?? {
+        phase: phase.phaseId,
+        reason,
+      },
+      uncertain: Boolean(decision.uncertain),
+      summary: decision.summary ?? details,
+      failure_class: rawFailureClass.trim().length > 0
+        ? rawFailureClass
+        : "UNKNOWN",
+      recommended_agent: decision.recommended_agent ?? null,
+      evidence_request: decision.evidence_request ?? null,
+    };
+  }
+
+  private normalizeRecommendedAction(action: string): ArbitrationDecisionAction {
+    if (action === "PASS_WITH_WARN") {
+      return action;
+    }
+
+    if (action === "REQUEST_MORE_EVIDENCE") {
+      return action;
+    }
+
+    if (action === "RETRY_SAME_AGENT") {
+      return action;
+    }
+
+    if (action === "SWITCH_AGENT") {
+      return action;
+    }
+
+    if (action === "BLOCK") {
+      return action;
+    }
+
+    return "RETRY_SAME_AGENT";
+  }
+
+  private normalizeRiskLevel(riskLevel: string): ArbitrationRiskLevel {
+    if (riskLevel === "LOW") {
+      return riskLevel;
+    }
+
+    if (riskLevel === "MEDIUM") {
+      return riskLevel;
+    }
+
+    if (riskLevel === "HIGH") {
+      return riskLevel;
+    }
+
+    return "MEDIUM";
+  }
+
+  private normalizeConfidence(confidence: number): number {
+    if (!Number.isFinite(confidence)) {
+      return 0;
+    }
+
+    if (confidence < 0) {
+      return 0;
+    }
+
+    if (confidence > 1) {
+      return 1;
+    }
+
+    return confidence;
+  }
+
+  private shouldRequireHumanReview(decision: ArbitrationDecision): boolean {
+    if (decision.risk_level === "HIGH") {
+      return true;
+    }
+
+    return decision.uncertain;
+  }
+
+  private isSwitchAllowed(agent: AgentName): boolean {
+    return ALLOWED_SWITCH_AGENTS.includes(agent);
+  }
+
+  private async invokeFailureArbitration(
+    phase: PhaseDefinition,
+    activeAgent: AgentName,
+    reason: string,
+    details: string | null,
+    shouldRetry: boolean,
+    retryCount: number,
+    maxRetries: number,
+    fingerprint: string,
+  ): Promise<ArbitrationDecision> {
+    const state = this.stateMachine.getState();
+
+    const arbitrationResult = await arbitrateFailureWithMode(
+      {
+        phase,
+        activeAgent,
+        category: state.category,
+        mode: state.mode,
+        reason,
+        details,
+        shouldRetry,
+        retryCount,
+        maxRetries,
+        fingerprint,
+        taskId: state.taskId,
+        docPath: state.docPath,
+        projectPath: state.projectPath,
+        sessionId: this.activeSessionId,
+      },
+      {
+        getClient: (projectPath: string) => this.bindings.getClient(projectPath),
+        runRuleArbitration: (context) => this.invokeRuleFailureArbitration(
+          context.phase,
+          context.activeAgent,
+          context.reason,
+          context.details,
+          context.shouldRetry,
+          context.fingerprint,
+        ),
+      },
+    );
+
+    this.latestArbitrationMeta = arbitrationResult.reviewContextMeta;
+    return arbitrationResult.decision;
+  }
+
+  private invokeRuleFailureArbitration(
+    phase: PhaseDefinition,
+    activeAgent: AgentName,
+    reason: string,
+    details: string | null,
+    shouldRetry: boolean,
+    fingerprint: string,
+  ): ArbitrationDecision {
+    const normalizedReason = reason.toLowerCase();
+    const normalizedDetails = (details ?? "").toLowerCase();
+
+    let recommendedAction: ArbitrationDecisionAction = shouldRetry
+      ? "RETRY_SAME_AGENT"
+      : "PASS_WITH_WARN";
+    let riskLevel: ArbitrationRiskLevel = "LOW";
+    let confidence = shouldRetry ? 0.85 : 0.7;
+    let reasonCode = shouldRetry ? "ARB_RETRY_SAME_AGENT" : "ARB_PASS_WITH_WARN";
+    let failureClass = "UNKNOWN";
+    let summary = details ?? reason;
+    let evidenceRequest: string | null = null;
+    let uncertain = false;
+
+    if (normalizedReason.includes("gate") || normalizedReason.includes("evidence")) {
+      recommendedAction = "REQUEST_MORE_EVIDENCE";
+      reasonCode = "ARB_REQUEST_MORE_EVIDENCE";
+      confidence = 0.92;
+      failureClass = "GATE_EVIDENCE_MISSING";
+      summary = "Gate evidence is missing. Request another run with explicit evidence.";
+      evidenceRequest = "请补充 changed_files 与 artifact_pointers，并给出门禁对应证据。";
+    } else if (normalizedReason.includes("timeout")) {
+      recommendedAction = shouldRetry ? "RETRY_SAME_AGENT" : "PASS_WITH_WARN";
+      reasonCode = "ARB_TIMEOUT_RETRY";
+      confidence = shouldRetry ? 0.88 : 0.65;
+      failureClass = "TIMEOUT";
+      summary = "The phase failed due to timeout. Retry is recommended when budget allows.";
+    } else if (
+      normalizedReason.includes("structured json")
+      || normalizedDetails.includes("structured json")
+    ) {
+      recommendedAction = "REQUEST_MORE_EVIDENCE";
+      reasonCode = "ARB_STRUCTURED_PARSE_ERROR";
+      confidence = 0.76;
+      riskLevel = "MEDIUM";
+      failureClass = "STRUCTURED_PARSE_ERROR";
+      summary = "Structured output parsing failed. Request one rerun with strict JSON output.";
+      evidenceRequest = "请严格按 JSON 结构返回，确保 status/summary/changed_files 等字段完整。";
+    } else if (
+      normalizedReason.includes("permission")
+      || normalizedReason.includes("auth")
+      || normalizedReason.includes("security")
+    ) {
+      recommendedAction = "BLOCK";
+      reasonCode = "ARB_SECURITY_BLOCKED";
+      confidence = 0.95;
+      riskLevel = "HIGH";
+      failureClass = "SECURITY_OR_PERMISSION";
+      summary = "Security-related failure detected. Manual intervention is required.";
+    }
+
+    if (!shouldRetry && recommendedAction === "RETRY_SAME_AGENT") {
+      recommendedAction = "PASS_WITH_WARN";
+      reasonCode = "ARB_RETRY_LIMIT_REACHED_PASS_WITH_WARN";
+      confidence = 0.68;
+      summary = "Retry budget is exhausted. Continue with warning to avoid hard stop.";
+    }
+
+    if (confidence < ARBITRATION_CONFIDENCE_THRESHOLD) {
+      uncertain = true;
+    }
+
+    return {
+      decision_id: `${phase.phaseId}-${Date.now()}`,
+      phase_id: phase.phaseId,
+      recommended_action: recommendedAction,
+      risk_level: riskLevel,
+      confidence,
+      reason_code: reasonCode,
+      reason_params: {
+        phase: phase.phaseId,
+        agent: activeAgent,
+        fingerprint,
+      },
+      uncertain,
+      failure_class: failureClass,
+      summary,
+      recommended_agent: null,
+      evidence_request: evidenceRequest,
+    };
   }
 
   private buildAgentPrompt(phase: PhaseDefinition, blackboard: BlackboardJson): string {
@@ -478,12 +990,14 @@ export class PipelineRunner {
       ? state.phases[previousPhase.phaseId]?.summary ?? null
       : null;
 
-    if (!phase.agent) {
+    const activeAgent = this.resolvePhaseAgent(phase);
+
+    if (!activeAgent) {
       throw new Error(`Phase ${phase.phaseId} agent is missing`);
     }
 
     const basePrompt = this.promptBuilder.build({
-      agentName: phase.agent,
+      agentName: activeAgent,
       phase,
       state,
       blackboard,
@@ -529,8 +1043,56 @@ export class PipelineRunner {
     return error.name;
   }
 
+  private parseStructuredResultWithMiniCompatibility(
+    phase: PhaseDefinition,
+    mode: string,
+    rawText: string,
+  ): ReturnType<typeof parseAgentResult> {
+    const structuredResult = parseAgentResult(rawText);
+
+    if (!this.shouldTreatMiniScoutTextAsSuccess(phase, mode, structuredResult, rawText)) {
+      return structuredResult;
+    }
+
+    return {
+      status: "SUCCESS",
+      summary: rawText.trim().slice(0, MINI_SCOUT_TEXT_SUMMARY_LIMIT),
+      changed_files: [],
+      commands_executed: [],
+      artifact_pointers: [],
+      error_summary: null,
+      next_suggestion: null,
+    };
+  }
+
+  private shouldTreatMiniScoutTextAsSuccess(
+    phase: PhaseDefinition,
+    mode: string,
+    structuredResult: ReturnType<typeof parseAgentResult>,
+    rawText: string,
+  ): boolean {
+    if (mode !== PipelineMode.MINI) {
+      return false;
+    }
+
+    if (phase.agent !== AgentName.TECH_SCOUT) {
+      return false;
+    }
+
+    if (rawText.trim().length === 0) {
+      return false;
+    }
+
+    return structuredResult.status === "FAILED"
+      && structuredResult.summary === STRUCTURED_RESULT_PARSE_FAILURE_SUMMARY;
+  }
+
   private shouldStop(): boolean {
     return this.aborted || this.bindings.getPipelineStatus() === PipelineStatus.ABORTED;
+  }
+
+  private resetLatestArbitrationMeta(): void {
+    this.latestArbitrationMeta = null;
   }
 
   private async stopEventForwarding(

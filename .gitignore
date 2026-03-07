@@ -11,6 +11,9 @@ dist/
 **/dist/
 .turbo/
 .vite/
+packages/server/data/
+LxyDxb
+doc
 
 # ─── TypeScript / Tooling Cache ───
 *.tsbuildinfo

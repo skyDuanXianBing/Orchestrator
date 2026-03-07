@@ -442,7 +442,7 @@ function stopDurationTimer(): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(7, 9, 14, 0.72);
+  background: rgba(15, 23, 42, 0.34);
   padding: 20px;
 }
 

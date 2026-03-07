@@ -147,6 +147,11 @@ function handleClosePhaseDetail(): void {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.97) 100%);
+  box-shadow: var(--shadow-sm);
 }
 
 .pipeline-graph__title {
@@ -154,26 +159,33 @@ function handleClosePhaseDetail(): void {
   font-weight: 600;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
 .pipeline-graph__count {
   font-size: 0.8rem;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   font-family: var(--font-mono);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.14);
 }
 
 .pipeline-graph__progress {
-  height: 4px;
+  height: 8px;
   background: var(--color-bg-input);
-  border-radius: 2px;
+  border: 1px solid rgba(216, 227, 240, 0.92);
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .pipeline-graph__progress-bar {
   height: 100%;
-  background: var(--color-success);
-  border-radius: 2px;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+  border-radius: 999px;
   transition: width 0.3s ease;
 }
 
@@ -182,22 +194,58 @@ function handleClosePhaseDetail(): void {
   align-items: center;
   gap: 0;
   overflow-x: auto;
-  padding: 8px 0 16px;
+  padding: 8px 4px 16px;
 }
 
 .pipeline-graph__connector {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 0 6px;
+  justify-content: center;
+  min-width: 60px;
+  padding: 0 8px;
   flex-shrink: 0;
 }
 
+.pipeline-graph__connector::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+}
+
 .pipeline-graph__arrow {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
   color: var(--color-text-muted);
   font-size: 1rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+
+.pipeline-graph__connector--done::before {
+  background: rgba(22, 163, 74, 0.45);
 }
 
 .pipeline-graph__connector--done .pipeline-graph__arrow {
   color: var(--color-success);
+  border-color: rgba(22, 163, 74, 0.24);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+@media (max-width: 768px) {
+  .pipeline-graph {
+    padding: 16px;
+  }
 }
 </style>

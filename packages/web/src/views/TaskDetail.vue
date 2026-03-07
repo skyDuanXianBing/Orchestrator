@@ -156,6 +156,9 @@ onMounted(async () => {
     SSEEventType.PHASE_STARTED,
     SSEEventType.PHASE_COMPLETED,
     SSEEventType.PHASE_FAILED,
+    SSEEventType.ARBITRATION_STARTED,
+    SSEEventType.ARBITRATION_COMPLETED,
+    SSEEventType.ARBITRATION_AUTO_ACTION_APPLIED,
     SSEEventType.PIPELINE_COMPLETED,
     SSEEventType.PIPELINE_FAILED,
     SSEEventType.PIPELINE_ABORTED,
@@ -278,6 +281,11 @@ async function handleReviewSubmit(
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
 }
 
 .task-detail__header-left {
@@ -300,14 +308,20 @@ async function handleReviewSubmit(
 
 .task-detail__info {
   display: flex;
-  gap: 32px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
 .task-detail__info-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+  min-width: 180px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--shadow-sm);
 }
 
 .task-detail__info-label {
@@ -327,6 +341,7 @@ async function handleReviewSubmit(
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 251, 255, 0.96) 100%);
 }
 
 .task-detail__requirement p {
@@ -339,5 +354,17 @@ async function handleReviewSubmit(
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text);
+}
+
+@media (max-width: 768px) {
+  .task-detail__header-left,
+  .task-detail__header-right {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .task-detail__info-item {
+    min-width: 100%;
+  }
 }
 </style>

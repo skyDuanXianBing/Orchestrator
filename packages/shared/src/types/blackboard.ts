@@ -2,7 +2,13 @@
 // types/blackboard.ts — 黑板 JSON Schema 类型
 // ============================================
 
-import type { AgentName, PhaseStatus, PhaseType } from "./pipeline.js";
+import type {
+  AgentName,
+  ArbitrationDecision,
+  ArbitrationReviewContext,
+  PhaseStatus,
+  PhaseType,
+} from "./pipeline.js";
 
 export type OperationState = "STARTED" | "COMPLETED" | "FAILED";
 
@@ -46,7 +52,7 @@ export interface BlackboardJson {
   phases: Record<string, PhaseRecord>;
 }
 
-/** 全局上下文（由 context_builder 填充） */
+/** 全局上下文（由 tech_scout / context_builder 填充） */
 export interface GlobalContext {
   relevant_files: string[];
   api_contracts: string[];
@@ -72,4 +78,6 @@ export interface PhaseRecord {
   operations_seq?: number;
   error_summary: string | null;
   summary: string | null;
+  arbitration?: ArbitrationDecision;
+  review_context?: ArbitrationReviewContext;
 }

@@ -83,9 +83,9 @@ export default {
   pipeline: {
     title: "流水线阶段",
     phaseDesc: {
-      phase_0: "需求澄清",
+      phase_0: "Tech Scout",
       phase_0r: "人工审阅",
-      phase_1: "上下文构建",
+      phase_1: "红测 / 实现",
       phase_2: "测试 / 实现",
       phase_3: "QA / 实现",
       phase_4: "质量保障",
@@ -198,6 +198,7 @@ export default {
     categoryC: "C - 删除（移除功能）",
     categoryD: "D - 查询（查询 / 分析）",
     modeLabel: "模式",
+    modeMini: "极简",
     modeFast: "快速",
     modeBalanced: "均衡",
     modeComprehensive: "全面",
@@ -225,6 +226,9 @@ export default {
     phaseFailed: "阶段 {phaseId} 失败 — {error}",
     gatePassed: "门禁通过 — {phaseId}",
     gateFailed: "门禁失败 — {phaseId}",
+    arbitrationStarted: "失败仲裁已启动 — {phaseId}",
+    arbitrationCompleted: "失败仲裁已完成 — {phaseId}（{action}）",
+    arbitrationAutoActionApplied: "已应用仲裁动作 — {phaseId}（{action}）",
     humanReviewRequired: "等待人工审阅 — {phaseId}",
     humanReviewCompleted: "人工审阅完成 — {phaseId}",
     circuitBreakerTriggered: "熔断器触发 — {phaseId}",
@@ -232,6 +236,18 @@ export default {
     pipelineFailed: "流水线失败 — {error}",
     pipelineAborted: "流水线已中止",
     blackboardUpdated: "黑板已更新",
+    code: {
+      PIPELINE_GATE_FAILED: "门禁校验失败",
+      ARB_STARTED: "失败仲裁已启动",
+      ARB_REQUEST_MORE_EVIDENCE: "需要补充更多证据后重试",
+      ARB_RETRY_SAME_AGENT: "将重试当前代理",
+      ARB_SWITCH_AGENT_APPLIED: "已切换代理策略",
+      ARB_RETRY_LIMIT_REACHED: "已达到重试上限",
+      ARB_POLICY_BLOCKED: "策略阻断，流水线已停止",
+      ARB_DECISION_BLOCK: "仲裁判定阻断，流水线已停止",
+      ARB_HIGH_RISK_SWITCH: "高风险切换，需人工审阅",
+      ARB_UNCERTAIN_MORE_EVIDENCE: "结果不确定，需人工审阅",
+    },
   },
 
   // ─── Store error messages ───

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PhaseType } from "@orchestrator/shared";
+import { Category, Mode, PhaseType } from "@orchestrator/shared";
 import type { PhaseRecord } from "@orchestrator/shared";
 import { GateVerifier } from "../src/core/gate-verifier.js";
 
@@ -46,5 +46,21 @@ describe("GateVerifier", () => {
     const result = verifier.verify(record, PhaseType.AGENT_GATE);
     expect(result.passed).toBe(false);
     expect(result.reason).toContain("缺少产出物或变更文件记录");
+  });
+
+  it("should pass without artifacts for MINI mode", () => {
+    const verifier = new GateVerifier();
+    const record = createPhaseRecord({ changed_files: [], artifact_pointers: [] });
+
+    const result = verifier.verify(record, PhaseType.AGENT_GATE, { mode: Mode.MINI });
+    expect(result.passed).toBe(true);
+  });
+
+  it("should pass without artifacts for READ category", () => {
+    const verifier = new GateVerifier();
+    const record = createPhaseRecord({ changed_files: [], artifact_pointers: [] });
+
+    const result = verifier.verify(record, PhaseType.AGENT_GATE, { category: Category.READ });
+    expect(result.passed).toBe(true);
   });
 });

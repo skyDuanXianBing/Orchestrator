@@ -29,6 +29,7 @@
         <div class="form-group">
           <label class="form-label" for="mode">{{ t('create.modeLabel') }}</label>
           <select id="mode" v-model="form.mode" class="form-select" required>
+            <option value="MINI">{{ t('create.modeMini') }}</option>
             <option value="FAST">{{ t('create.modeFast') }}</option>
             <option value="BALANCED">{{ t('create.modeBalanced') }}</option>
             <option value="COMPREHENSIVE">{{ t('create.modeComprehensive') }}</option>
@@ -102,15 +103,18 @@ async function handleSubmit(): Promise<void> {
 }
 
 .create-task__title {
-  font-size: 1.5rem;
+  font-size: 1.8rem;
   font-weight: 700;
   margin-bottom: 24px;
+  color: var(--color-text);
 }
 
 .create-task__form {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  padding: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 251, 255, 0.98) 100%);
 }
 
 .create-task__row {
@@ -121,7 +125,7 @@ async function handleSubmit(): Promise<void> {
 
 .create-task__error {
   padding: 12px 16px;
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(220, 38, 38, 0.08);
   border: 1px solid var(--color-error);
   border-radius: var(--radius-sm);
   color: var(--color-error);
@@ -132,6 +136,18 @@ async function handleSubmit(): Promise<void> {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .create-task__row {
+    grid-template-columns: 1fr;
+  }
+
+  .create-task__actions {
+    justify-content: stretch;
+    flex-direction: column-reverse;
+  }
 }
 </style>

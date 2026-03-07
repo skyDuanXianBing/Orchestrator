@@ -4,28 +4,30 @@
 
 /* ─── CSS Custom Properties ─── */
 :root {
-  --color-bg: #0f1117;
-  --color-bg-card: #1a1d27;
-  --color-bg-input: #252834;
-  --color-bg-hover: #2a2d3a;
-  --color-border: #2e3140;
-  --color-border-focus: #4f8aff;
-  --color-text: #e1e4eb;
-  --color-text-secondary: #8b8fa3;
-  --color-text-muted: #5c6078;
-  --color-primary: #4f8aff;
-  --color-primary-hover: #6b9fff;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-  --color-error: #f87171;
-  --color-info: #60a5fa;
-  --color-purple: #a78bfa;
-  --color-pending: #5c6078;
+  --color-bg: #f3f7fc;
+  --color-bg-card: #ffffff;
+  --color-bg-input: #f7faff;
+  --color-bg-hover: #eef4ff;
+  --color-bg-panel: #f9fbff;
+  --color-border: #d8e3f0;
+  --color-border-strong: #bfd1e9;
+  --color-border-focus: #3b82f6;
+  --color-text: #172033;
+  --color-text-secondary: #4f607c;
+  --color-text-muted: #7a8aa5;
+  --color-primary: #3b82f6;
+  --color-primary-hover: #2563eb;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-error: #dc2626;
+  --color-info: #0284c7;
+  --color-purple: #7c3aed;
+  --color-pending: #64748b;
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 12px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 18px 40px rgba(37, 99, 235, 0.10);
   --font-mono: "SF Mono", "Fira Code", "Consolas", monospace;
 }
 
@@ -43,16 +45,31 @@ html {
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.10), transparent 28%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 24%),
+    linear-gradient(180deg, #f8fbff 0%, var(--color-bg) 48%, #eef4fb 100%);
   color: var(--color-text);
   line-height: 1.6;
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.18);
+  color: var(--color-text);
 }
 
 a {
   color: var(--color-primary);
   text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 a:hover {
@@ -78,14 +95,23 @@ a:hover {
   background: var(--color-bg-card);
   color: var(--color-text);
   font-size: 0.875rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.18s ease;
   white-space: nowrap;
 }
 
 .btn:hover {
   background: var(--color-bg-hover);
-  border-color: var(--color-text-muted);
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+}
+
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.14);
 }
 
 .btn:disabled {
@@ -97,6 +123,7 @@ a:hover {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: #fff;
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.22);
 }
 
 .btn--primary:hover {
@@ -107,6 +134,7 @@ a:hover {
 .btn--danger {
   border-color: var(--color-error);
   color: var(--color-error);
+  background: rgba(220, 38, 38, 0.03);
 }
 
 .btn--danger:hover {
@@ -142,13 +170,21 @@ a:hover {
   color: var(--color-text);
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 0.15s ease;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
   border-color: var(--color-border-focus);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.10);
+}
+
+.form-input::placeholder,
+.form-textarea::placeholder {
+  color: var(--color-text-muted);
 }
 
 .form-textarea {
@@ -167,6 +203,7 @@ a:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: 20px;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ─── Status Badges ─── */
@@ -174,7 +211,7 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -183,32 +220,32 @@ a:hover {
 }
 
 .badge--idle {
-  background: rgba(92, 96, 120, 0.2);
+  background: rgba(100, 116, 139, 0.12);
   color: var(--color-pending);
 }
 
 .badge--running {
-  background: rgba(79, 138, 255, 0.15);
+  background: rgba(59, 130, 246, 0.12);
   color: var(--color-primary);
 }
 
 .badge--paused {
-  background: rgba(251, 191, 36, 0.15);
+  background: rgba(217, 119, 6, 0.12);
   color: var(--color-warning);
 }
 
 .badge--completed {
-  background: rgba(52, 211, 153, 0.15);
+  background: rgba(22, 163, 74, 0.12);
   color: var(--color-success);
 }
 
 .badge--failed {
-  background: rgba(248, 113, 113, 0.15);
+  background: rgba(220, 38, 38, 0.10);
   color: var(--color-error);
 }
 
 .badge--aborted {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(148, 163, 184, 0.14);
   color: var(--color-text-muted);
 }
 
@@ -245,6 +282,10 @@ a:hover {
   justify-content: center;
   gap: 12px;
   padding: 60px 20px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.64);
+  box-shadow: var(--shadow-sm);
   color: var(--color-text-muted);
 }
 

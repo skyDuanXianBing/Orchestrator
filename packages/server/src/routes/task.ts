@@ -5,6 +5,7 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
 import type { TaskManager } from "../services/task-manager.js";
+import { Category, Mode } from "@orchestrator/shared";
 import type {
   ApiResponse,
   CreateTaskRequest,
@@ -15,6 +16,10 @@ import type {
 
 export function createTaskRouter(taskManager: TaskManager): Router {
   const router = Router();
+
+  const isEnumValue = <T extends string>(values: readonly string[], input: string): input is T => {
+    return values.includes(input);
+  };
 
   const getParamAsString = (value: string | string[] | undefined): string => {
     if (Array.isArray(value)) {
@@ -33,6 +38,26 @@ export function createTaskRouter(taskManager: TaskManager): Router {
           success: false,
           data: null,
           error: "缺少必填字段: requirement, category, mode",
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (!isEnumValue<Category>(Object.values(Category), body.category)) {
+        const response: ApiResponse = {
+          success: false,
+          data: null,
+          error: `非法 category: ${body.category}`,
+        };
+        res.status(400).json(response);
+        return;
+      }
+
+      if (!isEnumValue<Mode>(Object.values(Mode), body.mode)) {
+        const response: ApiResponse = {
+          success: false,
+          data: null,
+          error: `非法 mode: ${body.mode}`,
         };
         res.status(400).json(response);
         return;

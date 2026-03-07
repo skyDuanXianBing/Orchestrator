@@ -14,6 +14,7 @@ export enum Category {
 
 /** 执行模式 */
 export enum Mode {
+  MINI = "MINI",
   FAST = "FAST",
   BALANCED = "BALANCED",
   COMPREHENSIVE = "COMPREHENSIVE",
@@ -22,10 +23,12 @@ export enum Mode {
 
 /** 子代理名称（与 markdown 文件名严格一致） */
 export enum AgentName {
+  TECH_SCOUT = "tech_scout",
   SPEC_CLARIFIER = "spec_clarifier",
   CONTEXT_BUILDER = "context_builder",
   TEST_RED_AUTHOR = "test_red_author",
   IMPL_GREEN_CODER = "impl_green_coder",
+  FAILURE_ARBITRATOR = "failure_arbitrator",
   QUALITY_ASSURANCE = "quality_assurance",
   REFACTOR_REVIEWER = "refactor_reviewer",
   COMPLIANCE_AUDITOR = "compliance_auditor",
@@ -60,6 +63,50 @@ export interface PhaseDefinition {
   readonly gateCondition: string;     // 人类可读的门禁条件描述
 }
 
+export type ArbitrationDecisionAction =
+  | "PASS_WITH_WARN"
+  | "REQUEST_MORE_EVIDENCE"
+  | "RETRY_SAME_AGENT"
+  | "SWITCH_AGENT"
+  | "BLOCK";
+
+export type ArbitrationRiskLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export interface ArbitrationDecision {
+  decision_id: string;
+  phase_id: string;
+  recommended_action: ArbitrationDecisionAction;
+  risk_level: ArbitrationRiskLevel;
+  confidence: number;
+  reason_code: string;
+  reason_params?: Record<string, string | number | boolean>;
+  uncertain: boolean;
+  failure_class: string;
+  summary: string | null;
+  recommended_agent?: AgentName | null;
+  evidence_request?: string | null;
+}
+
+export interface ArbitrationReviewContext {
+  phase_id: string;
+  reason_code: string;
+  reason_params: Record<string, string | number | boolean>;
+  recommended_action: ArbitrationDecisionAction;
+  risk_level: ArbitrationRiskLevel;
+  confidence: number;
+  uncertain: boolean;
+  failure_reason: string;
+  failure_details: string | null;
+  failure_fingerprint: string;
+  arbitration_mode?: "rule" | "llm" | "hybrid";
+  llm_attempted?: boolean;
+  fallback_used?: boolean;
+  llm_error_type?: string | null;
+  parse_error?: string | null;
+  raw_response_snippet?: string | null;
+  evidence_request?: string | null;
+}
+
 /** 阶段运行时状态 */
 export interface PhaseRuntime {
   phaseType: PhaseType;
@@ -78,6 +125,8 @@ export interface PhaseRuntime {
   operationsSeq?: number;
   errorSummary: string | null;
   summary: string | null;
+  arbitration?: ArbitrationDecision;
+  reviewContext?: ArbitrationReviewContext;
 }
 
 /** 流水线定义 = 阶段定义数组 */
